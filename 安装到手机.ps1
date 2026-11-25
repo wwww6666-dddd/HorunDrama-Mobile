@@ -2,8 +2,8 @@
 # 用法：powershell -ExecutionPolicy Bypass -File .\安装到手机.ps1
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$adb = 'D:\Android\Sdk\platform-tools\adb.exe'
-$apk = Join-Path $root 'android\out\HorunDrama-mobile-1.0.0.apk'
+$adb = Join-Path $root 'android-sdk\platform-tools\adb.exe'
+$apk = Join-Path $root 'android\out\HorunDrama-mobile-1.1.6-standalone.apk'
 
 if (-not (Test-Path $adb)) { throw "找不到 adb：$adb" }
 if (-not (Test-Path $apk)) { throw "还没打包，先跑 打包手机端.ps1" }

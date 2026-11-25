@@ -6,16 +6,22 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
+$env:TEMP = Join-Path $root '.tmp\temp'
+$env:TMP = $env:TEMP
+New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
 $JDK = 'D:\jdk25\openjdk-25.0.1_windows-x64_bin\jdk-25.0.1'
-$BT = 'D:\Android\Sdk\build-tools\36.1.0'
-$AJAR = 'D:\Android\Sdk\platforms\android-36.1\android.jar'
+# aapt2/apksigner 不认中文路径；SDK 实体在工程内，通过 ASCII 联接 D:\horun-android 访问。
+$sdkRoot = 'D:\horun-android\android-sdk'
+if (-not (Test-Path $sdkRoot)) { $sdkRoot = Join-Path $root 'android-sdk' }
+$BT = Join-Path $sdkRoot 'build-tools\36.1.0'
+$AJAR = Join-Path $sdkRoot 'platforms\android-36.1\android.jar'
 # d8.bat / apksigner.bat 靠 JAVA_HOME 找 java；本机环境变量指向了不存在的目录，这里显式指定
 $env:JAVA_HOME = $JDK
 $env:PATH = "$JDK\bin;$BT;$env:PATH"
 
 $src = Join-Path $root 'android'
 $runtimeStage = Join-Path $root '.tmp\runtime-stage'
-$stage = 'D:\horun-mobile-build'
+$stage = 'D:\horun-android\.tmp\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
 $apk = Join-Path $work 'HorunDrama-mobile-1.1.6.apk'

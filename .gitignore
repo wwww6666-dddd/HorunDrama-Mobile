@@ -25,6 +25,10 @@ apps/mobile-core/resources/**/*.exe
 android/assets/
 android/jniLibs/
 
+# Android SDK / 模拟器 AVD（2026-11-25 起随工程放，45GB，绝不入库）
+android-sdk/
+.android/
+
 # 编辑器与系统垃圾
 .idea/
 .vscode/

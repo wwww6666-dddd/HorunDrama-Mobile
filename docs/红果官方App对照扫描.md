@@ -220,7 +220,7 @@
 ## 7. 复现方法（下次重新采集用）
 
 ```powershell
-$adb = "D:\Android\Sdk\platform-tools\adb.exe"
+$adb = "D:\红果短剧手机端\android-sdk\platform-tools\adb.exe"
 
 # 1) 对齐手机基准（392×851dp）
 & $adb shell "wm size 1080x2340; wm density 440"
