@@ -139,7 +139,7 @@ final class NodeCore {
         File web = new File(prefix, "web");
         String nodeLib = ctx.getApplicationInfo().nativeLibraryDir + "/libnode.so";
         if (!new File(nodeLib).isFile()) {
-            throw new IOException("APK 内缺少 libnode.so，请确认安装的是 arm64 完整包");
+            throw new IOException("APK 内缺少 libnode.so，请确认安装的是完整包（arm64-v8a / x86_64）");
         }
         String ffmpeg = ctx.getApplicationInfo().nativeLibraryDir + "/libffmpeg.so";
 

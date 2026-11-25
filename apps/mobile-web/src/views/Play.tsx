@@ -78,12 +78,70 @@ function episodeOfUrl(url: string): string {
 }
 
 /** 播放页：xgplayer 控制条 + 沉浸式外壳（顶栏 / 右侧操作栏 / 底部信息）。 */
-export function Play({ route }: { route: PlayRoute }): JSX.Element {
+const QUALITY_LABEL: Record<string, string> = {
+  smooth: '360P',
+  '480p': '480P',
+  '720p': '720P',
+  '1080p': '1080P',
+};
+
+/** 手机播放页的线性图标：不用 emoji，避免彩色字形和官方白线稿不一致 */
+function MpIcon({
+  kind,
+  size = 26,
+}: {
+  kind: 'star' | 'comment' | 'heart' | 'share' | 'more' | 'clock' | 'clear' | 'chev';
+  size?: number;
+}): JSX.Element {
+  const paths: Record<string, JSX.Element> = {
+    star: <path d="M12 3.2l2.7 5.5 6 .9-4.3 4.2 1 6-5.4-2.9-5.4 2.9 1-6-4.3-4.2 6-.9z" />,
+    comment: (
+      <>
+        <path d="M4 5.5h16v10.5H9.5L4 20z" />
+        <circle cx="9" cy="10.5" r="1" />
+        <circle cx="12" cy="10.5" r="1" />
+        <circle cx="15" cy="10.5" r="1" />
+      </>
+    ),
+    heart: <path d="M12 20s-7-4.4-7-9.3A4 4 0 0 1 12 7a4 4 0 0 1 7 3.7c0 4.9-7 9.3-7 9.3z" />,
+    share: (
+      <>
+        <path d="M12 4v10M9 7l3-3 3 3" />
+        <path d="M5 14v5h14v-5" />
+      </>
+    ),
+    more: (
+      <>
+        <circle cx="12" cy="5" r="1.2" />
+        <circle cx="12" cy="12" r="1.2" />
+        <circle cx="12" cy="19" r="1.2" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 8v4.5l3 2" />
+      </>
+    ),
+    clear: <path d="M9 4H4v5M15 4h5v5M4 15v5h5M20 15v5h-5" />,
+    chev: <path d="M9 5l7 7-7 7" />,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={kind === 'star' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[kind]}
+    </svg>
+  );
+}
+
+export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boolean }): JSX.Element {
   const [job, setJob] = useState<PlayJob | null>(null);
   const [detail, setDetail] = useState<SeriesDetail | null>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
   const [danmaku, setDanmaku] = useState<DanmakuPrefs>(() => readDanmakuPrefs());
   const [localDanmaku, setLocalDanmaku] = useState<DanmakuItem[]>([]);
   const [danmakuText, setDanmakuText] = useState('');
@@ -136,6 +194,7 @@ export function Play({ route }: { route: PlayRoute }): JSX.Element {
 
   const playerRef = useRef<Player | null>(null);
   const hideTimer = useRef<number | null>(null);
+  const clearedRef = useRef(false);
   const detailRef = useRef<SeriesDetail | null>(null);
   detailRef.current = detail;
   const qualitySeek = useRef<number | null>(null);
@@ -869,14 +928,28 @@ export function Play({ route }: { route: PlayRoute }): JSX.Element {
   }, [toggleDanmaku]);
 
   const wakeChrome = (): void => {
+    if (clearedRef.current) return;
     setChromeVisible(true);
     if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setChromeVisible(false), 2600);
   };
 
+  // 清屏后第一下点击只负责把控件叫回来，不直接触发播放/暂停
+  const tapChrome = (): void => {
+    if (clearedRef.current) {
+      clearedRef.current = false;
+      setChromeVisible(true);
+      if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
+      hideTimer.current = window.setTimeout(() => setChromeVisible(false), 2600);
+      return;
+    }
+    wakeChrome();
+  };
+
   const onTime = useCallback(
     (t: number, d: number): void => {
       setTime(t);
+      if (d > 0) setDuration(d);
       // 播到 25 秒就把下一集的 360p 地址预热好（一集只有一次，成本极低）
       if (t > 25) {
         const d0 = detailRef.current;
@@ -911,16 +984,51 @@ export function Play({ route }: { route: PlayRoute }): JSX.Element {
     [prefs?.skipOutroSec, prefs?.autoPlayNext],
   );
 
+  const rateOptions = [0.75, 1, 1.25, 1.5, 2];
+
+  const cycleRate = (): void => {
+    const idx = rateOptions.indexOf(rate);
+    const next = rateOptions[(idx + 1) % rateOptions.length] ?? 1;
+    setRate(next);
+    patchPrefs({ defaultSpeed: next });
+  };
+
+  const clearScreen = (event?: { stopPropagation: () => void }): void => {
+    event?.stopPropagation();
+    clearedRef.current = true;
+    setMoreOpen(false);
+    setQualityOpen(false);
+    setChromeVisible(false);
+    if (hideTimer.current !== null) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  };
+
+  const seekTo = (event: { currentTarget: HTMLDivElement; clientX: number }): void => {
+    const total = duration > 0 ? duration : (job?.durationSec ?? 0);
+    if (total <= 0) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    const at = ratio * total;
+    playerRef.current?.seek(at);
+    setTime(at);
+  };
+
+  const qualityList = (job?.available?.length ?? 0) > 0 ? (job?.available ?? []) : ['smooth', '480p', '720p', '1080p'];
+  const totalSec = duration > 0 ? duration : (job?.durationSec ?? 0);
+  const progressRatio = totalSec > 0 ? Math.min(1, Math.max(0, time / totalSec)) : 0;
+
   return (
     <div
-      className="play"
+      className={`play${mobile ? ' play--mobile' : ''}`}
       ref={pageRef}
       data-chrome-hidden={!chromeVisible}
       // 等待新集时也要盖掉 xgplayer 的「重播/进入」浮层（play.css 里按这个属性隐藏）
       data-switching={switching || waiting}
       onMouseMove={wakeChrome}
-      onClick={wakeChrome}
-      onTouchStart={wakeChrome}
+      onClick={tapChrome}
+      onTouchStart={tapChrome}
     >
       {readyUrl !== '' && startReady && (
         <DramaPlayer
@@ -1008,7 +1116,9 @@ export function Play({ route }: { route: PlayRoute }): JSX.Element {
       )}
 
       {/* 无边框窗口的拖动条：播放页没有顶栏，不给一条能拖的区域就挪不动窗口 */}
-      <div className="play__dragbar" title="按住拖动窗口" />
+      {!mobile && (
+        <>
+          <div className="play__dragbar" title="按住拖动窗口" />
 
       <header className="play__top" data-hidden={!chromeVisible}>
         <button className="btn btn--ghost btn--icon" title="返回上一页" onClick={() => goBack('#/')}>
@@ -1081,6 +1191,152 @@ export function Play({ route }: { route: PlayRoute }): JSX.Element {
           </>
         )}
       </div>
+        </>
+      )}
+
+      {mobile && (
+        <>
+          <header className="mp-top" data-hidden={!chromeVisible}>
+            <button type="button" className="mp-back" aria-label="返回" onClick={() => goBack('#/')}>
+              <IconBack size={22} />
+            </button>
+            <span className="mp-epname">第{currentIndex >= 0 ? currentIndex + 1 : route.no}集</span>
+            <button
+              type="button"
+              className="mp-more-btn"
+              aria-label="更多"
+              onClick={() => {
+                setQualityOpen(false);
+                setMoreOpen((v) => !v);
+              }}
+            >
+              <MpIcon kind="more" size={24} />
+            </button>
+          </header>
+
+          {moreOpen && (
+            <div className="mp-menu">
+              <button type="button" onClick={() => { setMoreOpen(false); void downloadCurrent(); }}>
+                下载本集
+              </button>
+              <button type="button" onClick={() => { setMoreOpen(false); openShare(); }}>
+                分享续播
+              </button>
+              <button type="button" onClick={() => setMoreOpen(false)}>
+                取消
+              </button>
+            </div>
+          )}
+
+          <div className="mp-rail" data-hidden={!chromeVisible}>
+            <button type="button" className="mp-rail-btn" onClick={() => void toggleFavorite()} aria-label={favorited ? '取消收藏' : '收藏'}>
+              <span className="mp-rail-icon mp-rail-star" data-on={favorited}>
+                <MpIcon kind="star" size={30} />
+              </span>
+              <b>{favorited ? '已收藏' : '收藏'}</b>
+            </button>
+            <button type="button" className="mp-rail-btn" onClick={openComments} aria-label="评论">
+              <span className="mp-rail-icon">
+                <MpIcon kind="comment" size={30} />
+              </span>
+              <b>{fmtCount(episode?.commentCount ?? 0) || '评论'}</b>
+            </button>
+            <button type="button" className="mp-rail-btn" onClick={() => void toggleLike()} aria-label={liked ? '取消点赞' : '点赞'}>
+              <span className="mp-rail-icon mp-rail-heart" data-on={liked}>
+                <MpIcon kind="heart" size={30} />
+              </span>
+              <b>{fmtCount(diggCount) || '点赞'}</b>
+            </button>
+            <button type="button" className="mp-rail-btn mp-rail-share" onClick={openShare} aria-label="分享">
+              <span className="mp-rail-icon">
+                <MpIcon kind="share" size={30} />
+              </span>
+              <b>分享</b>
+            </button>
+          </div>
+
+          <div className="mp-info" data-hidden={!chromeVisible} data-open={introOpen}>
+            <div className="mp-info-badges">
+              <button type="button" className="mp-danmaku" data-off={!danmaku.enabled} onClick={toggleDanmaku} aria-label="弹幕开关">
+                弹
+              </button>
+              {detail !== null && detail.drama.heatText !== '' && (
+                <span className="mp-hot">🏆 热搜榜 · {detail.drama.heatText}</span>
+              )}
+            </div>
+            <h1 className="mp-title">{title}</h1>
+            <div className="mp-sub">
+              <span>第{route.no}集｜{detail?.drama.intro ?? ''}</span>
+              {detail !== null && detail.drama.intro !== '' && (
+                <button type="button" onClick={() => setIntroOpen((v) => !v)}>
+                  {introOpen ? '收起' : '展开'}
+                </button>
+              )}
+            </div>
+            {introOpen && <p className="mp-intro">{detail?.drama.intro ?? ''}</p>}
+            <p className="mp-claim">ⓘ 作者声明：内容由AI生成</p>
+          </div>
+
+          <div className="mp-bottom" data-hidden={!chromeVisible}>
+            <div className="mp-progress" onClick={seekTo} role="presentation">
+              <span style={{ width: `${Math.round(progressRatio * 100)}%` }} />
+              <i style={{ left: `${Math.round(progressRatio * 100)}%` }} />
+            </div>
+            <div className="mp-controls">
+              <button
+                type="button"
+                className="mp-ctl mp-ctl--episodes"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setQualityOpen(false);
+                  setEpisodesOpen(true);
+                }}
+              >
+                <span>选集</span>
+                <b>⋯</b>
+                <MpIcon kind="chev" size={16} />
+              </button>
+              <button
+                type="button"
+                className="mp-ctl"
+                onClick={() => {
+                  setMoreOpen(false);
+                  setQualityOpen((v) => !v);
+                }}
+              >
+                <span className="mp-hd">HD</span>
+                <span>清晰度</span>
+              </button>
+              <button type="button" className="mp-ctl" onClick={cycleRate}>
+                <MpIcon kind="clock" size={18} />
+                <span>{rate}x</span>
+              </button>
+              <button type="button" className="mp-ctl" onClick={clearScreen}>
+                <MpIcon kind="clear" size={18} />
+                <span>清屏</span>
+              </button>
+            </div>
+
+            {qualityOpen && (
+              <div className="mp-quality">
+                {qualityList.map((item) => (
+                  <button
+                    type="button"
+                    key={item}
+                    data-active={item === quality}
+                    onClick={() => {
+                      setQualityOpen(false);
+                      switchQuality(item);
+                    }}
+                  >
+                    {QUALITY_LABEL[item] ?? item}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {waiting && (
         // data-over：下面还挂着上一集的画面（播放器不卸载）→ 压暗 + 延迟淡入，

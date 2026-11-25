@@ -18,12 +18,23 @@ $runtimeStage = Join-Path $root '.tmp\runtime-stage'
 $stage = 'D:\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
-$apk = Join-Path $work 'HorunDrama-mobile-1.1.2.apk'
-$versionCode = 4
-$versionName = '1.1.2'
+$apk = Join-Path $work 'HorunDrama-mobile-1.1.4.apk'
+$versionCode = 6
+$versionName = '1.1.4'
+
+# aapt2 的 --version-code/--version-name 不会覆盖 manifest 里的硬编码值；
+# 这里先卡住，避免出现 build.ps1 写 1.1.3、APK 实际还是旧版本（2026-11-25 遇到过）
+$manifestText = Get-Content -LiteralPath (Join-Path $src 'AndroidManifest.xml') -Raw
+if ($manifestText -notmatch "android:versionCode=`"$versionCode`"" -or $manifestText -notmatch "android:versionName=`"$versionName`"") {
+  throw "AndroidManifest.xml 的 versionCode/versionName 与 build.ps1 不一致：需要 versionCode=$versionCode / versionName=$versionName"
+}
 
 foreach ($need in @("$JDK\bin\javac.exe", "$BT\aapt2.exe", "$BT\d8.bat", "$BT\apksigner.bat", "$BT\zipalign.exe", $AJAR, (Join-Path $runtimeStage 'assets'), (Join-Path $runtimeStage 'jniLibs'))) {
   if (-not (Test-Path $need)) { throw "缺少构建素材: $need（先跑 .\android\prepare-runtime.ps1）" }
+}
+foreach ($abi in @('arm64-v8a', 'x86_64')) {
+  $nodeLib = Join-Path $runtimeStage "jniLibs\$abi\libnode.so"
+  if (-not (Test-Path $nodeLib)) { throw "缺少 $abi 的 libnode.so（先跑 .\android\prepare-runtime-x86.ps1）" }
 }
 
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
@@ -93,14 +104,16 @@ try {
   $s.Write($bytes, 0, $bytes.Length)
   $s.Dispose()
 
-  foreach ($lib in Get-ChildItem (Join-Path $stage 'jniLibs\arm64-v8a') -Filter *.so -File) {
-    $name = "lib/arm64-v8a/$($lib.Name)"
-    $entry = $zip.CreateEntry($name, [System.IO.Compression.CompressionLevel]::Optimal)
-    $s = $entry.Open()
-    $buf = [System.IO.File]::ReadAllBytes($lib.FullName)
-    $s.Write($buf, 0, $buf.Length)
-    $s.Dispose()
-    Write-Host "  + $name $([math]::Round($buf.Length/1MB,1)) MB"
+  foreach ($abiDir in Get-ChildItem (Join-Path $stage 'jniLibs') -Directory) {
+    foreach ($lib in Get-ChildItem $abiDir.FullName -Filter *.so -File) {
+      $name = "lib/$($abiDir.Name)/$($lib.Name)"
+      $entry = $zip.CreateEntry($name, [System.IO.Compression.CompressionLevel]::Optimal)
+      $s = $entry.Open()
+      $buf = [System.IO.File]::ReadAllBytes($lib.FullName)
+      $s.Write($buf, 0, $buf.Length)
+      $s.Dispose()
+      Write-Host "  + $name $([math]::Round($buf.Length/1MB,1)) MB"
+    }
   }
 
   # aapt2 的 -A 在 Windows 上会把 asset 条目写成反斜杠（assets\core\...），
@@ -153,4 +166,5 @@ Write-Host ''
 Write-Host "APK: $finalPath"
 Write-Host "大小: $([math]::Round($size / 1MB, 2)) MB"
 Write-Host "SHA-256: $hash"
+
 

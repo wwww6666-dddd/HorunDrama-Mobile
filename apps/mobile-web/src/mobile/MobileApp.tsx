@@ -153,7 +153,7 @@ export function MobileApp(): JSX.Element {
       <NavContext.Provider value={nav}>
         <GlassDefs />
         <div className="m-playwrap">
-          <Play route={playRoute} />
+          <Play route={playRoute} mobile />
         </div>
         <ShareDialog />
       </NavContext.Provider>
