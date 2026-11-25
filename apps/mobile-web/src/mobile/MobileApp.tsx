@@ -14,6 +14,7 @@ import { Me } from './pages/Me.tsx';
 import { MeSettings } from './pages/MeSettings.tsx';
 import { Category, Downloads, NewReleases } from './pages/Misc.tsx';
 import { Rank } from './pages/Rank.tsx';
+import { Welfare, welfareUnclaimed } from './pages/Welfare.tsx';
 
 const TAB_ROUTES: MRoute[] = TABS.map((t) => t.route);
 
@@ -22,6 +23,7 @@ const PAGES: Record<MRoute, () => JSX.Element> = {
   feed: Feed,
   rank: Rank,
   library: Library,
+  welfare: Welfare,
   me: Me,
   settings: MeSettings,
   search: Search,
@@ -36,6 +38,7 @@ const LABEL: Record<MRoute, string> = {
   feed: '推荐',
   rank: '榜单',
   library: '追剧',
+  welfare: '福利',
   me: '我的',
   settings: '设置',
   search: '搜索',
@@ -65,6 +68,7 @@ function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }
           }}
         >
           {tab.label}
+          {tab.route === 'welfare' && route !== 'welfare' && welfareUnclaimed() && <i className="m-tabbar__dot" aria-hidden="true" />}
         </button>
       ))}
     </nav>

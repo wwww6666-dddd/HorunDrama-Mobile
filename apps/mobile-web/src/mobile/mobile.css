@@ -3507,7 +3507,7 @@ html.m-mode .feedv__author-add[data-on='true'] {
 html.m-mode .feedv__fav {
   position: absolute;
   z-index: 6;
-  right: 12px;
+  right: 4px;
   top: calc(var(--feed-media-top) + var(--feed-band-h) - 69px);
   display: grid;
   justify-items: center;
@@ -3530,7 +3530,7 @@ html.m-mode .feedv__fav-icon[data-on='true'] {
 
 html.m-mode .feedv__fav-label {
   font-family: var(--m-font);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.86);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);

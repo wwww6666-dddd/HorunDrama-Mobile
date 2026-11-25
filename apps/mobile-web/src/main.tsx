@@ -21,6 +21,7 @@ import './design/v2.css';
 import './design/mobile.css';
 // 全新手机界面（m-*）：最后加载，独立于桌面端样式
 import './mobile/mobile.css';
+import './mobile/welfare.css';
 
 const root = document.getElementById('root');
 if (root === null) throw new Error('#root 不存在');

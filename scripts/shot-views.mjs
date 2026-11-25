@@ -21,7 +21,7 @@ const SIZES = [
   [390, 844],
   [412, 915],
 ];
-const VIEWS = ['theater', 'feed', 'library', 'me'];
+const VIEWS = ['theater', 'feed', 'welfare', 'library', 'me'];
 const OUT = path.resolve('.tmp/shots/views');
 
 fs.mkdirSync(OUT, { recursive: true });

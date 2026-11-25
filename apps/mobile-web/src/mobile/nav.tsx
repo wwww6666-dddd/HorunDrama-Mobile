@@ -7,6 +7,7 @@ export type MRoute =
   | 'feed'
   | 'rank'
   | 'library'
+  | 'welfare'
   | 'me'
   | 'settings'
   | 'search'
@@ -16,13 +17,13 @@ export type MRoute =
   | 'downloads';
 
 /**
- * 底栏 4 个 Tab，顺序按官方：首页（推荐流）、剧场（书城）、追剧、我的。
- * 榜单不再是底栏——入口移到剧场胶囊和搜索页的榜单区（阶段 A 定的口径）。
+ * 底栏 4 个 Tab，顺序按官方：首页（推荐流）、剧场（书城）、福利、我的。
+ * 追剧仍是独立页，入口在「我的 › 追更」和详情页；榜单在剧场胶囊与搜索页。
  */
 export const TABS: Array<{ route: MRoute; label: string }> = [
   { route: 'feed', label: '首页' },
   { route: 'home', label: '剧场' },
-  { route: 'library', label: '追剧' },
+  { route: 'welfare', label: '福利' },
   { route: 'me', label: '我的' },
 ];
 
@@ -34,6 +35,7 @@ const ALIAS: Record<string, MRoute> = {
   feed: 'feed',
   rank: 'rank',
   library: 'library',
+  welfare: 'welfare',
   me: 'me',
   settings: 'settings',
   search: 'search',

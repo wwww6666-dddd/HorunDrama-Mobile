@@ -1,0 +1,335 @@
+/* 福利页：官方 7.4.5.32 的橙色头图 + 白卡；底栏跟剧场/我的一样切浅色 */
+html.m-mode .m-app[data-route='welfare'] .m-scroll {
+  background: #f4f4f5;
+  color: #17171a;
+  padding-bottom: 0;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-page {
+  padding: 0;
+  animation: none;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-tabbar {
+  background: #ffffff;
+  border-top-color: #ececee;
+  box-shadow: none;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-tabbar__item {
+  color: #9a9a9e;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-tabbar__item[data-active='true'] {
+  color: #17171a;
+  font-weight: 700;
+}
+
+html.m-mode .m-tabbar__dot {
+  position: absolute;
+  top: 7px;
+  margin-left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5a1f;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-tabbar__item {
+  position: relative;
+}
+
+html.m-mode .m-app[data-route='welfare'] .m-tabbar__item[data-active='true']::after {
+  background: #17171a;
+  height: 2px;
+  width: 20px;
+}
+
+html.m-mode .wf {
+  min-height: 100%;
+  padding-bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom) + 20px);
+  font-family: var(--m-font);
+}
+
+html.m-mode .wf-hero {
+  position: relative;
+  padding: calc(var(--m-safe-top) + 26px) 18px 22px;
+  background:
+    radial-gradient(120% 90% at 92% 12%, rgba(255, 232, 170, 0.55) 0%, rgba(255, 196, 120, 0.18) 40%, transparent 66%),
+    linear-gradient(152deg, #ff9a55 0%, #ff7a35 42%, #ff631f 100%);
+  color: #ffffff;
+  overflow: hidden;
+}
+
+html.m-mode .wf-hero::after {
+  content: '';
+  position: absolute;
+  right: -46px;
+  top: -34px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+html.m-mode .wf-hero__stats {
+  display: flex;
+  align-items: flex-start;
+  gap: 42px;
+}
+
+html.m-mode .wf-hero__stat {
+  display: grid;
+  gap: 4px;
+}
+
+html.m-mode .wf-hero__stat span {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+html.m-mode .wf-hero__stat b {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+}
+
+html.m-mode .wf-hero__note {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+html.m-mode .wf-hero__cta {
+  margin-top: 16px;
+  height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #f05a1e;
+  font-family: var(--m-font);
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(160, 60, 10, 0.18);
+}
+
+html.m-mode .wf-hero__cta[data-on='true'] {
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: none;
+}
+
+html.m-mode .wf-hero__toast {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #fff7e6;
+}
+
+html.m-mode .wf-card {
+  margin: 12px 12px 0;
+  padding: 14px 14px 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(40, 30, 20, 0.05);
+}
+
+html.m-mode .wf-card h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #17171a;
+}
+
+html.m-mode .wf-card__sub,
+html.m-mode .wf-card__hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8c8c90;
+}
+
+html.m-mode .wf-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+html.m-mode .wf-card__claim {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(96deg, #ff9a3d, #ff6a24);
+  color: #ffffff;
+  font-family: var(--m-font);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+html.m-mode .wf-card__claim:disabled {
+  background: #f2f2f3;
+  color: #b6b6ba;
+}
+
+html.m-mode .wf-card__claim[data-on='true'] {
+  background: #f2f2f3;
+  color: #9a9a9e;
+}
+
+html.m-mode .wf-card__streak {
+  font-size: 12px;
+  color: #ff6a24;
+  font-weight: 600;
+}
+
+html.m-mode .wf-tasks {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+html.m-mode .wf-task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f7f8;
+}
+
+html.m-mode .wf-task__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(150deg, #ff9a3d, #ff6321);
+  color: #ffffff;
+}
+
+html.m-mode .wf-task[data-done='true'] .wf-task__icon {
+  background: #ececed;
+  color: #b0b0b4;
+}
+
+html.m-mode .wf-task__text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+html.m-mode .wf-task__text b {
+  font-size: 14px;
+  font-weight: 600;
+  color: #17171a;
+}
+
+html.m-mode .wf-task__text em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: #9a9a9e;
+}
+
+html.m-mode .wf-task__btn {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid #ff7a35;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #ff6a24;
+  font-family: var(--m-font);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+html.m-mode .wf-task[data-done='true'] .wf-task__btn {
+  border-color: #e6e6e8;
+  color: #b0b0b4;
+}
+
+html.m-mode .wf-packets {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+html.m-mode .wf-packet {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  min-height: 64px;
+  padding: 8px 2px 7px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ff8f4a, #f4551c);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+html.m-mode .wf-packet span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+html.m-mode .wf-packet b {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+html.m-mode .wf-packet[data-past='true'] {
+  background: #f3f3f4;
+  box-shadow: none;
+}
+
+html.m-mode .wf-packet[data-past='true'] span,
+html.m-mode .wf-packet[data-past='true'] b {
+  color: #b7b7bb;
+}
+
+html.m-mode .wf-packet[data-today='true'] {
+  outline: 2px solid #ffd7bd;
+  outline-offset: -2px;
+}
+
+html.m-mode .wf-lines {
+  margin: 10px 0 0;
+  padding: 0 0 0 16px;
+  display: grid;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #6f6f74;
+}
+
+html.m-mode .wf-foot {
+  margin: 16px 16px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #a0a0a5;
+  text-align: center;
+}
+
+@media (max-width: 360px) {
+  html.m-mode .wf-hero__stats {
+    gap: 28px;
+  }
+
+  html.m-mode .wf-hero__stat b {
+    font-size: 28px;
+  }
+
+  html.m-mode .wf-packets {
+    gap: 4px;
+  }
+}

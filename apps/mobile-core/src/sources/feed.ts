@@ -40,7 +40,10 @@ async function enrich(items: SeriesSummary[]): Promise<FeedItem[]> {
   const ids = items.map((item) => item.id).slice(0, 30);
   const details = await withRetry('推荐流详情', () => client.getSeriesBatch(ids)).catch(() => []);
   const firstEpisode = new Map<string, { episodeId: string; no: number; digg: number; comment: number }>();
+  /** 详情里的 series 带 heat/play_count/follow_count，列表项只有标题和封面（D-40 的补全） */
+  const detailSeries = new Map<string, SeriesSummary>();
   for (const detail of details) {
+    detailSeries.set(detail.series.id, detail.series);
     const ep = detail.episodes.find((e) => e.playable !== false) ?? detail.episodes[0];
     if (ep !== undefined) {
       firstEpisode.set(detail.series.id, {
@@ -55,9 +58,10 @@ async function enrich(items: SeriesSummary[]): Promise<FeedItem[]> {
   for (const summary of items) {
     const first = firstEpisode.get(summary.id);
     if (first === undefined) continue;
-    const drama = toDrama(summary);
-    // 上游 SeriesSummary 根本没有 heat 字段，推荐流的热度胶囊此前永远是空的（D-40）。
-    // 这里用它确实给了的第一集点赞数当热度文案，措辞保持"赞"，不当成热度编造。
+    // 详情字段覆盖列表字段：heat / play_count / follow_count 只在详情里有
+    const merged = { ...summary, ...(detailSeries.get(summary.id) ?? {}) } as SeriesSummary;
+    const drama = toDrama(merged);
+    // 详情也没给热度时才退回第一集点赞数，措辞保持"赞"，不当成热度编造
     if (drama.heatText === '' && first.digg > 0) drama.heatText = `${fmtCount(first.digg)} 赞`;
     out.push({
       ...drama,
