@@ -180,16 +180,16 @@ export function Home(): JSX.Element {
 
       <div className="mt-acts">
         <button type="button" className="mt-act" data-kind="filter" onClick={() => go('category')}>
-          <span className="mt-act__icon"><Icon name="filter" size={13} /></span>筛选
+          <span className="mt-act__icon"><Icon name="funnel" size={13} /></span>筛选
         </button>
         <button type="button" className="mt-act" data-kind="rank" onClick={() => go('rank')}>
-          <span className="mt-act__icon"><Icon name="rank" size={13} /></span>排行榜
+          <span className="mt-act__icon"><Icon name="flame" size={13} /></span>排行榜
         </button>
         <button type="button" className="mt-act" data-kind="new" onClick={() => go('new')}>
-          <span className="mt-act__icon"><Icon name="tv" size={13} /></span>新剧
+          <span className="mt-act__icon"><Icon name="play" size={13} solid /></span>新剧
         </button>
         <button type="button" className="mt-act" data-kind="reserve" onClick={() => go('new')}>
-          <span className="mt-act__icon"><Icon name="clock" size={13} /></span>预约
+          <span className="mt-act__icon"><Icon name="grid" size={13} solid /></span>预约
         </button>
       </div>
 

@@ -14,7 +14,6 @@ import './design/library.css';
 import './design/downloads.css';
 import './design/mini.css';
 import './design/motion.css';
-import './design/reward.css';
 import './design/share.css';
 import './styles.css';
 import './design/v2.css';

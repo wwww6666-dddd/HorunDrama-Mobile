@@ -41,7 +41,6 @@ const ACCENTS: Array<{ value: Accent; label: string; color: string }> = [
 export function Settings(): JSX.Element {
   const theme = useApp((s) => s.theme);
   const toggleTheme = useApp((s) => s.toggleTheme);
-  const openReward = useApp((s) => s.openReward);
   const accent = useApp((s) => s.accent);
   const setAccent = useApp((s) => s.setAccent);
   const settings = useAsync((signal) => api.settings(signal), []);
@@ -549,18 +548,6 @@ export function Settings(): JSX.Element {
 
         <div className="settings-row">
           <div className="settings-row__grow">
-            <p className="settings-label">打赏支持</p>
-            <p className="settings-hint">
-              微信 / 支付宝收款码，以及作者的联系方式（邮箱 hoppetthappy@gmail.com、QQ 758269701）
-            </p>
-          </div>
-          <button className="btn" onClick={openReward}>
-            打开
-          </button>
-        </div>
-
-        <div className="settings-row">
-          <div className="settings-row__grow">
             <p className="settings-label">预加载集数</p>
             <p className="settings-hint">
               以正在看的这集为中心，向前、向后各预加载这么多集，切集不用等（0 = 关闭；默认 5）
@@ -795,9 +782,6 @@ export function Settings(): JSX.Element {
             <p className="settings-label">HorunDrama 手机端</p>
             <p className="settings-hint">Android 版 · 版本 {APP_VERSION} · 本地测试版，暂不对外发布</p>
           </div>
-          <button className="btn btn--ghost" onClick={openReward}>
-            打赏作者
-          </button>
         </div>
 
         <div className="settings-row">

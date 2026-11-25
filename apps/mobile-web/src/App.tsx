@@ -10,7 +10,6 @@ import { TopBar } from './ui/TopBar.tsx';
 import { UpdateCard } from './ui/UpdateCard.tsx';
 import { MiniPlayer } from './views/MiniPlayer.tsx';
 import { LoginDialog } from './ui/LoginDialog.tsx';
-import { RewardDialog } from './ui/RewardDialog.tsx';
 import { ShareDialog } from './ui/ShareDialog.tsx';
 import { Play } from './views/Play.tsx';
 import { Theater } from './views/Theater.tsx';
@@ -155,7 +154,6 @@ export function App(): JSX.Element {
       <>
         <div className="backdrop" />
         <Play route={playRoute} />
-        <RewardDialog />
         <ShareDialog />
         <UpdateCard />
       </>
@@ -176,7 +174,6 @@ export function App(): JSX.Element {
       </div>
       {detailId !== null && <DetailDrawer seriesId={detailId} />}
       <LoginDialog />
-      <RewardDialog />
       <ShareDialog />
       <UpdateCard />
     </>

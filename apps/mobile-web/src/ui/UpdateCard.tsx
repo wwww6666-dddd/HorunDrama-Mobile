@@ -35,7 +35,6 @@ function pickAsset(assets: UpdateAsset[]): UpdateAsset | null {
  * 数据目录不在更新包里，设置/登录/缓存保留。
  */
 export function UpdateCard(): JSX.Element | null {
-  const openReward = useApp((s) => s.openReward);
   const info = useApp((s) => s.updateInfo);
   const setInfo = useApp((s) => s.setUpdateInfo);
   const open = useApp((s) => s.updateCardOpen);
@@ -230,21 +229,11 @@ export function UpdateCard(): JSX.Element | null {
         <button className="btn btn--ghost" onClick={() => openExternalUrl(info.url)}>
           更新说明
         </button>
-        <button
-          className="btn"
-          onClick={() => {
-            openReward();
-          }}
-        >
-          ♥ 打赏（自愿）
-        </button>
         <button className="btn btn--ghost" onClick={dismiss}>
           稍后提醒
         </button>
       </div>
-      <p className="update-pop__hint">
-        更新会保留 data 目录；下载/解压失败不会先动现有程序。打赏二维码在「打赏作者」里。
-      </p>
+      <p className="update-pop__hint">更新会保留 data 目录；下载/解压失败不会先动现有程序。</p>
     </div>,
     root,
   );

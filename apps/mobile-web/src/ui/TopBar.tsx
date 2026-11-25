@@ -15,7 +15,6 @@ export function TopBar(): JSX.Element {
   const openLogin = useApp((s) => s.openLogin);
   const setView = useApp((s) => s.setView);
   const openDetail = useApp((s) => s.openDetail);
-  const openReward = useApp((s) => s.openReward);
   const openShare = useApp((s) => s.openShare);
   const updateInfo = useApp((s) => s.updateInfo);
   const openUpdateCard = useApp((s) => s.openUpdateCard);
@@ -145,14 +144,6 @@ export function TopBar(): JSX.Element {
           onClick={() => setView('search')}
         >
           <IconSearch size={18} />
-        </button>
-        <button
-          className="btn btn--ghost btn--icon topbar__reward"
-          title="打赏作者"
-          aria-label="打赏作者"
-          onClick={openReward}
-        >
-          <span className="topbar__glyph">♥</span>
         </button>
         <button
           className="btn btn--ghost btn--icon topbar__feedback"

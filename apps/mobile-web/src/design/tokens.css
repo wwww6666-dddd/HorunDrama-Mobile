@@ -3,6 +3,26 @@
  * 视觉理念沿用旧版：透明玻璃 + 光感（四层：模糊背景 → 玻璃 → 顶边高光 → 内容投影）。
  */
 
+/* 官方 7.4.5.32 字体：标题用抖音发现体 Bold，数字用 Douyin Number JR。
+   两个文件都从 reference\hongguo-7.4.5.32 原包抽，放 public/fonts，构建后随 dist 进 APK。 */
+@font-face {
+  font-family: 'DouYinFaXianSans';
+  src: url('/fonts/DouYinFaXianSans-Bold.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DouyinNumberJR';
+  src: url('/fonts/DouyinNumberJR-Medium.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  /* 字体只含 0-9，限定 unicode-range，避免中文被误判成缺字 */
+  unicode-range: U+0030-0039, U+0020, U+00A0, U+FF0A;
+}
+
 :root {
   color-scheme: dark;
 
@@ -54,6 +74,8 @@
 
   /* ---------- 字号 ---------- */
   --font-sans: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  --font-display: 'DouYinFaXianSans', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  --font-number: 'DouyinNumberJR', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
   --font-serif: 'Songti SC', 'Source Han Serif SC', 'Noto Serif SC', serif;
   --fs-display: 34px;
   --fs-title: 22px;

@@ -53,21 +53,35 @@ const PATHS = {
   tv: 'M4 6h16v11H4zM9 21h6',
   mute: 'M4 9h4l5-4v14l-5-4H4zM18 9l4 6M22 9l-4 6',
   filter: 'M4 7h16M7 12h10M10 17h4',
+  funnel: 'M4 5h16l-6.2 7.2v5.2l-3.6 1.8v-7z',
+  flame: 'M12 3.2c.8 3.6 4.6 5.2 4.6 9a4.6 4.6 0 0 1-9.2 0c0-2.2 1.3-3.6 2.4-4.6.2 2 .9 3 2 3.6-.4-2.4.1-5 .2-8z',
+  grid: 'M6.2 6.2h3.2v3.2H6.2zM14.6 6.2h3.2v3.2h-3.2zM6.2 14.6h3.2v3.2H6.2zM14.6 14.6h3.2v3.2h-3.2z',
   trash: 'M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13M10 11v6M14 11v6',
 } as const;
 
 export type IconName = keyof typeof PATHS;
 
-export function Icon({ name, size = 22, className }: { name: IconName; size?: number; className?: string }): JSX.Element {
+export function Icon({
+  name,
+  size = 24,
+  className,
+  solid = false,
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+  /** 实心图标（官方「上新/预约」入口的白三角、四点格）；默认线性 */
+  solid?: boolean;
+}): JSX.Element {
   return (
     <svg
       className={className}
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
+      fill={solid ? 'currentColor' : 'none'}
+      stroke={solid ? 'none' : 'currentColor'}
+      strokeWidth={solid ? 0 : 1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
