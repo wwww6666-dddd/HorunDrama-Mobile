@@ -3,12 +3,11 @@ import type { JSX } from 'react';
 import { api, coverOf, type Paged } from '../../api.ts';
 import { APP_AUTHOR, APP_VERSION, FEEDBACK_URL, GITHUB_URL, copyToClipboard, openExternalUrl } from '../../app-info.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Row, Skeleton } from '../ui.tsx';
 
 export function Search(): JSX.Element {
-  const { openDetail } = useNav();
+  const { go, openDetail } = useNav();
   const [query, setQuery] = useState(() => localStorage.getItem('horun-search-query') ?? '');
   const [submitted, setSubmitted] = useState('');
   const [suggest, setSuggest] = useState<Array<{ text: string; keyword?: string }>>([]);
@@ -58,8 +57,6 @@ export function Search(): JSX.Element {
 
   return (
     <>
-      <PageTitle title="搜索" sub="剧名、演员、一句话剧情" />
-
       <div className="m-searchbar">
         <Icon name="search" size={17} />
         <input
@@ -143,6 +140,7 @@ export function Search(): JSX.Element {
       {!result.loading && submitted !== '' && items.length === 0 && result.error === null && <Empty text={`没有找到「${submitted}」`} />}
       {submitted === '' && suggest.length === 0 && (
         <>
+          <RankPreview onOpen={openDetail} onMore={() => go('rank')} />
           {hotTitles.length > 0 && (
             <section className="m-hot">
               <h3>热门剧名</h3>
@@ -162,12 +160,86 @@ export function Search(): JSX.Element {
   );
 }
 
+const RANK_BOARDS = [
+  { id: 'ranklist_hot_search_sc', label: '热搜榜' },
+  { id: 'ranklist_subscribe', label: '预约榜' },
+] as const;
+
+/**
+ * 搜索页榜单区（阶段 A）：榜单从底栏挪到这里。
+ * 只取前 5 名，「完整榜单」跳 #/rank（Rank 页仍是二级页，深链不变）。
+ */
+function RankPreview({ onOpen, onMore }: { onOpen: (id: string) => void; onMore: () => void }): JSX.Element {
+  const [board, setBoard] = useState<string>(RANK_BOARDS[0].id);
+  const page = useAsync((signal) => api.rank('all', board, '', signal), [board]);
+  const items = (page.data?.items ?? []).slice(0, 5);
+
+  return (
+    <section className="m-rankpreview" aria-label="榜单">
+      <div className="m-rankpreview__head">
+        <div className="m-rtabs" role="tablist" aria-label="榜单分类">
+          {RANK_BOARDS.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              role="tab"
+              className="m-rtab"
+              data-active={b.id === board}
+              onClick={() => setBoard(b.id)}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="m-rankpreview__more" onClick={onMore}>
+          完整榜单 ›
+        </button>
+      </div>
+
+      {page.loading && <Skeleton rows={3} />}
+      {page.error !== null && <Empty text={page.error} />}
+
+      {items.map((entry, index) => {
+        if (entry.kind === 'actor') {
+          return (
+            <div className="m-lrow" key={`a-${entry.userId}`}>
+              <span className="m-lrow__no" data-top={index < 3}>{index + 1}</span>
+              <span className="m-lrow__avatar">
+                <img src={`/api/img?url=${encodeURIComponent(entry.avatar)}`} alt="" loading="lazy" decoding="async" />
+              </span>
+              <div className="m-lrow__main">
+                <p className="m-lrow__title">{entry.name}</p>
+                <p className="m-lrow__meta">演员</p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <button type="button" className="m-lrow" key={`s-${entry.drama.seriesId}`} onClick={() => onOpen(entry.drama.seriesId)}>
+            <span className="m-lrow__no" data-top={index < 3}>{index + 1}</span>
+            <span className="m-lrow__cover">
+              <img src={coverOf(entry.drama)} alt="" loading="lazy" decoding="async" />
+            </span>
+            <div className="m-lrow__main">
+              <p className="m-lrow__title">{entry.drama.title}</p>
+              <p className="m-lrow__meta">
+                {[entry.drama.episodeCount > 0 ? `${entry.drama.episodeCount} 集` : '短剧', entry.score !== '' ? entry.score : entry.drama.heatText]
+                  .filter((t) => t !== '')
+                  .join(' · ')}
+              </p>
+            </div>
+            <Icon name="chevron" size={17} />
+          </button>
+        );
+      })}
+    </section>
+  );
+}
+
 export function About(): JSX.Element {
   const [note, setNote] = useState('');
   return (
     <>
-      <PageTitle title="关于" sub={`HorunDrama 手机端 · ${APP_VERSION}`} />
-
       <div className="m-about-hero">
         <span className="m-about-hero__mark">H</span>
         <div>

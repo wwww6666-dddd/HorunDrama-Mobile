@@ -42,41 +42,13 @@ const LABEL: Record<MRoute, string> = {
   downloads: '下载',
 };
 
-function TabBar({
-  route,
-  onGo,
-  hidden,
-}: {
-  route: MRoute;
-  onGo: (next: MRoute) => void;
-  hidden: boolean;
-}): JSX.Element {
-  const navRef = useRef<HTMLElement | null>(null);
-  const [pill, setPill] = useState<{ x: number; w: number } | null>(null);
-
-  useEffect(() => {
-    const nav = navRef.current;
-    if (nav === null) return;
-    const measure = (): void => {
-      const index = TABS.findIndex((t) => t.route === route);
-      const item = nav.querySelectorAll<HTMLElement>('.m-tabbar__item')[index];
-      if (item === undefined) {
-        setPill(null);
-        return;
-      }
-      setPill({ x: item.offsetLeft, w: item.offsetWidth });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(nav);
-    return () => ro.disconnect();
-  }, [route]);
-
+/**
+ * 底栏：4 个纯文字 Tab（阶段 A 口径）。
+ * 不做图标、不做药丸滑块——选中态只靠字重 + 1px 下划线，跟官方一致。
+ */
+function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }): JSX.Element {
   return (
-    <nav ref={navRef} className="m-tabbar" data-hidden={hidden} aria-label="主导航">
-      {pill !== null && (
-        <span className="m-tabbar__pill" aria-hidden="true" style={{ width: `${pill.w}px`, transform: `translateX(${pill.x}px)` }} />
-      )}
+    <nav className="m-tabbar" aria-label="主导航">
       {TABS.map((tab) => (
         <button
           key={tab.route}
@@ -85,12 +57,11 @@ function TabBar({
           data-active={tab.route === route}
           aria-current={tab.route === route ? 'page' : undefined}
           onClick={() => {
-            navigator.vibrate?.(8);
+            navigator.vibrate?.(6);
             onGo(tab.route);
           }}
         >
-          <Icon name={tab.route === 'home' ? 'home' : tab.route === 'feed' ? 'play' : tab.route === 'rank' ? 'rank' : tab.route === 'library' ? 'bookmark' : 'me'} size={21} />
-          <span>{tab.label}</span>
+          {tab.label}
         </button>
       ))}
     </nav>
@@ -186,20 +157,15 @@ export function MobileApp(): JSX.Element {
   return (
     <NavContext.Provider value={nav}>
       <GlassDefs />
-      <div className="m-app" data-route={route}>
-        {route !== 'feed' && (
+      <div className="m-app" data-route={route} data-tab={isTab}>
+        {/* Tab 页不设顶栏：内容直接顶到安全区；二级页固定 44dp 返回栏 + 居中 15sp 标题 */}
+        {!isTab && (
           <header className="m-topbar" data-compact={scrolled || !isTab}>
-            {isTab ? (
-              <span className="m-topbar__title">{scrolled ? LABEL[route] : ''}</span>
-            ) : (
-              <>
-                <button type="button" className="m-topbar__back" aria-label="返回" onClick={back}>
-                  <Icon name="back" size={19} />
-                </button>
-                <span className="m-topbar__title m-topbar__title--center">{scrolled ? LABEL[route] : ''}</span>
-                <span className="m-topbar__spacer" />
-              </>
-            )}
+            <button type="button" className="m-topbar__back" aria-label="返回" onClick={back}>
+              <Icon name="back" size={19} />
+            </button>
+            <span className="m-topbar__title m-topbar__title--center">{LABEL[route]}</span>
+            <span className="m-topbar__spacer" />
           </header>
         )}
 
@@ -209,7 +175,7 @@ export function MobileApp(): JSX.Element {
           </div>
         </div>
 
-        {isTab && <TabBar route={route} onGo={go} hidden={false} />}
+        {isTab && <TabBar route={route} onGo={go} />}
 
         <Sheet open={detailId !== null} onClose={() => history.back()} tall>
           {detailId !== null && <Detail seriesId={detailId} onOpen={openDetail} />}

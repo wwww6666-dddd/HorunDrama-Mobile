@@ -25,7 +25,7 @@
   --m-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m-spring: cubic-bezier(0.32, 1.36, 0.42, 1);
   --m-ease: cubic-bezier(0.22, 0.68, 0.24, 1);
-  --m-tabbar-h: 58px;
+  --m-tabbar-h: 44px;
   --m-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'HarmonyOS Sans SC',
     'Segoe UI', system-ui, sans-serif;
 }
@@ -129,7 +129,7 @@ html.m-mode * {
 }
 
 .m-topbar__title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--m-text);
@@ -168,6 +168,11 @@ html.m-mode * {
   padding-top: 0;
   padding-bottom: 0;
   overflow: hidden;
+}
+
+/* Tab 页没有顶栏（阶段 A）：内容从安全区直接开始；二级页保留 44dp 返回栏 */
+.m-app[data-tab='true'] .m-scroll:not([data-immersive='true']) {
+  padding-top: calc(var(--m-safe-top) + 10px);
 }
 
 .m-page {
@@ -268,6 +273,8 @@ html.m-mode * {
   border: 1px solid var(--m-line);
   background: var(--m-surface);
   color: var(--m-text);
+  /* 窄屏（375/320）里按钮被挤压时也不许把两个字拆成两行 */
+  white-space: nowrap;
   font-family: var(--m-font);
   font-size: 14px;
   font-weight: 550;
@@ -770,6 +777,7 @@ html.m-mode * {
 
 .m-hero__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-top: 8px;
@@ -1842,6 +1850,7 @@ html.m-mode * {
 
 /* ================================ 底部导航 ================================ */
 
+/* 底栏：4 个纯文字 Tab（阶段 A）。高度 44dp + 安全区，不用图标、不用药丸。 */
 .m-tabbar {
   position: absolute;
   left: 0;
@@ -1849,59 +1858,49 @@ html.m-mode * {
   bottom: 0;
   z-index: 45;
   height: calc(var(--m-tabbar-h) + var(--m-safe-bottom));
-  padding: 5px 8px calc(5px + var(--m-safe-bottom));
+  padding: 0 6px var(--m-safe-bottom);
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-radius: 0;
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(16, 15, 15, 0.78);
-  backdrop-filter: blur(28px) saturate(1.6);
-  -webkit-backdrop-filter: blur(28px) saturate(1.6);
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28);
+  border-top: 1px solid var(--m-line-soft);
+  background: var(--m-bg-raise);
   transition: transform 0.34s var(--m-ease), opacity 0.24s var(--m-ease);
-}
-
-.m-tabbar[data-hidden='true'] {
-  transform: translateY(calc(100% + 22px));
-  opacity: 0;
-  pointer-events: none;
-}
-
-.m-tabbar__pill {
-  display: none;
 }
 
 .m-tabbar__item {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 4px 0 3px;
+  padding: 0 0 2px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 0;
   background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: color-mix(in srgb, var(--m-text) 45%, transparent);
   font-family: var(--m-font);
-  font-size: 10.5px;
+  font-size: 13.5px;
   letter-spacing: 0.01em;
-  transition: color 0.18s var(--m-ease), transform 0.16s var(--m-ease);
-}
-
-.m-tabbar__item:active {
-  transform: scale(0.92);
+  transition: color 0.18s var(--m-ease);
 }
 
 .m-tabbar__item[data-active='true'] {
-  color: color-mix(in srgb, var(--m-accent) 82%, #fff);
+  color: var(--m-text);
   font-weight: 600;
 }
 
-.m-tabbar__item[data-active='true'] svg {
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--m-accent) 45%, transparent));
+/* 选中态：1px 下划线，宽度只压住两个字，不做整格高亮 */
+.m-tabbar__item[data-active='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  translate: -50% 0;
+  width: 18px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.85;
 }
 
 /* ================================ 播放页适配 ================================ */
@@ -1926,8 +1925,7 @@ html.m-mode * {
 @media (prefers-reduced-motion: reduce) {
   .m-page,
   .m-sheet,
-  .m-sheet-mask,
-  .m-tabbar__pill {
+  .m-sheet-mask {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -3069,4 +3067,255 @@ html.m-mode .m-hero::before {
   font-size: 10px;
   font-weight: 700;
   vertical-align: 1px;
+}
+
+/* ======================== 阶段 A：信息架构新增 ======================== */
+
+/* 剧场顶部搜索框：整条可点，跳搜索页（搜索第一入口） */
+.m-searchbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 38px;
+  padding: 0 13px;
+  margin: 4px 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--m-chip-bg);
+  color: var(--m-text-3);
+  font-family: var(--m-font);
+  font-size: 13px;
+  text-align: left;
+}
+
+.m-searchbox svg {
+  flex: 0 0 auto;
+}
+
+/* 我的：四个快捷卡（下载 / 收藏 / 追更 / 设置） */
+.m-me-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 16px;
+}
+
+.m-me-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 66px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--m-surface);
+  color: var(--m-text);
+  font-family: var(--m-font);
+  font-size: 12.5px;
+  transition: transform 0.16s var(--m-ease), background 0.18s var(--m-ease);
+}
+
+.m-me-card:active {
+  transform: scale(0.96);
+  background: var(--m-surface-strong);
+}
+
+.m-me-card svg {
+  color: var(--m-accent);
+}
+
+/* 推荐流顶部：汉堡 + 居中频道 + 搜索，全部浮在视频上 */
+.m-feedtop {
+  position: absolute;
+  top: calc(var(--m-safe-top) + 6px);
+  left: 8px;
+  right: 8px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  transition: opacity 0.24s var(--m-ease);
+}
+
+.m-feedtop[data-hidden='true'] {
+  opacity: 0;
+}
+
+.m-feedtop__btn {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(12, 10, 9, 0.34);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.m-feedtop__btn:active {
+  transform: scale(0.92);
+}
+
+/* 汉堡里的快捷入口：底部弹层里排成三列 */
+.m-quickgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+.m-quickgrid__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 74px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--m-surface);
+  color: var(--m-text);
+  font-family: var(--m-font);
+  font-size: 12.5px;
+}
+
+.m-quickgrid__item:active {
+  background: var(--m-surface-strong);
+}
+
+.m-quickgrid__item svg {
+  color: var(--m-accent);
+}
+
+/* 搜索页榜单区：热搜榜 / 预约榜两个 Tab + 前 5 名 */
+.m-rankpreview {
+  margin-top: 6px;
+}
+
+.m-rankpreview__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.m-rtabs {
+  display: flex;
+  gap: 14px;
+}
+
+.m-rtab {
+  position: relative;
+  padding: 4px 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--m-text-3);
+  font-family: var(--m-font);
+  font-size: 13.5px;
+}
+
+.m-rtab[data-active='true'] {
+  color: var(--m-text);
+  font-weight: 600;
+}
+
+.m-rtab[data-active='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  translate: -50% 0;
+  width: 16px;
+  height: 1px;
+  background: currentColor;
+}
+
+.m-rankpreview__more {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--m-text-2);
+  font-family: var(--m-font);
+  font-size: 12px;
+}
+
+.m-caption {
+  margin: 8px 0 4px;
+  color: var(--m-text-3);
+  font-size: 12px;
+}
+
+/* 推荐流频道改成文字 Tab：不用药丸，选中态 1px 下划线 */
+.m-app[data-route='feed'] .feedv__tabs {
+  gap: 16px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.m-app[data-route='feed'] .feedv__tab {
+  position: relative;
+  padding: 4px 0 6px;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 15px;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
+
+.m-app[data-route='feed'] .feedv__tab[data-active='true'] {
+  background: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+
+.m-app[data-route='feed'] .feedv__tab[data-active='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  translate: -50% 0;
+  width: 18px;
+  height: 1px;
+  background: #fff;
+  opacity: 0.86;
+}
+
+/* 320 窄屏：继续观看卡右侧海报占位收窄，按钮文字不许竖排 */
+@media (max-width: 360px) {
+  .m-hero--split .m-hero__glass {
+    padding: 14px 112px 14px 14px;
+    min-height: 190px;
+  }
+
+  .m-hero__poster {
+    right: 12px;
+    width: 88px;
+    height: 124px;
+    margin-top: -62px;
+  }
+
+  .m-hero h2 {
+    font-size: 20px;
+  }
+
+  .m-hero__meta {
+    font-size: 11.5px;
+  }
+
+  .m-hero__hint {
+    display: none;
+  }
+
+  .m-hero__actions .m-btn {
+    white-space: nowrap;
+  }
 }

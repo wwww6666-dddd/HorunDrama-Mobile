@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { JSX } from 'react';
 import { api, coverOf, type DownloadItem, type FilterRow } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Loading, Skeleton, Sheet } from '../ui.tsx';
 
@@ -16,8 +15,6 @@ export function NewReleases(): JSX.Element {
 
   return (
     <>
-      <PageTitle title="新剧日历" sub="哪天开播、更到第几集" />
-
       {data !== null && data.dates.length > 0 && (
         <div className="m-chips">
           {data.dates.slice(0, 10).map((d) => (
@@ -115,17 +112,18 @@ export function Category(): JSX.Element {
 
   return (
     <>
-      <PageTitle
-        title="分类"
-        sub="先选条件，再看结果"
-        actions={
-          <button className="m-btn m-btn--mini m-filter-trigger" type="button" onClick={openSheet} disabled={filters.loading}>
-            <Icon name="filter" size={15} />
-            筛选
-            {activeCount > 0 && <span className="m-filter-count">{activeCount}</span>}
-          </button>
-        }
-      />
+      <div className="m-quick" role="navigation" aria-label="筛选入口">
+        <button
+          className="m-quick__item m-filter-trigger"
+          type="button"
+          onClick={openSheet}
+          disabled={filters.loading}
+        >
+          <Icon name="filter" size={15} />
+          筛选
+          {activeCount > 0 && <span className="m-filter-count">{activeCount}</span>}
+        </button>
+      </div>
 
       {activeCount > 0 && (
         <div className="m-activebar">
@@ -256,15 +254,12 @@ export function Downloads(): JSX.Element {
 
   return (
     <>
-      <PageTitle
-        title="下载"
-        sub={data !== null ? `共 ${data.summary.total} 个任务 · 下载在电脑上跑` : '下载在电脑上跑'}
-        actions={
-          <button className="m-iconbtn m-iconbtn--glass" type="button" aria-label="刷新" onClick={list.reload}>
-            <Icon name="refresh" size={18} />
-          </button>
-        }
-      />
+      <div className="m-quick" role="navigation" aria-label="下载操作">
+        <button className="m-quick__item" type="button" onClick={list.reload}>
+          <Icon name="refresh" size={16} /> 刷新
+        </button>
+      </div>
+      <p className="m-caption">{data !== null ? `共 ${data.summary.total} 个任务 · 下载在电脑上跑` : '下载在电脑上跑'}</p>
 
       {list.loading && <Skeleton rows={3} />}
       {list.error !== null && <Empty text={list.error} />}

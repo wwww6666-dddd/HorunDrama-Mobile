@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { JSX } from 'react';
 import { api, coverOf, type RankEntry } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Skeleton } from '../ui.tsx';
 
@@ -23,8 +22,6 @@ export function Rank(): JSX.Element {
 
   return (
     <>
-      <PageTitle title="榜单" sub={group?.name ?? '实时热榜'} />
-
       {groups.length > 0 && (
         <div className="m-chips" role="tablist" aria-label="榜单分类">
           {groups.map((g) => (

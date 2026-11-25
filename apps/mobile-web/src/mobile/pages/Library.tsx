@@ -2,7 +2,6 @@ import type { JSX } from 'react';
 import { useState } from 'react';
 import { api } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Segmented, Skeleton } from '../ui.tsx';
 
@@ -65,16 +64,6 @@ export function Library(): JSX.Element {
 
   return (
     <>
-      <PageTitle
-        title="追剧"
-        sub="收藏 · 历史 · 点赞 · 追更"
-        actions={
-          <button className="m-iconbtn m-iconbtn--glass" type="button" aria-label="下载管理" onClick={() => go('downloads')}>
-            <Icon name="download" size={18} />
-          </button>
-        }
-      />
-
       <Segmented
         items={[
           { value: 'fav', label: '收藏' },

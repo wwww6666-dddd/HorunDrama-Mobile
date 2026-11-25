@@ -1,7 +1,6 @@
 import type { JSX } from 'react';
 import { api, coverOf, type Drama, type ProgressEntry } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Skeleton } from '../ui.tsx';
 
@@ -60,28 +59,21 @@ export function Home(): JSX.Element {
 
   return (
     <>
-      <PageTitle
-        title="剧场"
-        sub="继续看、今日上新、热播推荐"
-        actions={
-          <button className="m-iconbtn m-iconbtn--glass" type="button" aria-label="搜索" onClick={() => go('search')}>
-            <Icon name="search" size={19} />
-          </button>
-        }
-      />
+      {/* 搜索第一入口：整条可点，进搜索页（阶段 A） */}
+      <button type="button" className="m-searchbox" onClick={() => go('search')} aria-label="搜索">
+        <Icon name="search" size={16} />
+        <span>剧名、演员、剧情关键词</span>
+      </button>
 
       <div className="m-quick" role="navigation" aria-label="快捷入口">
+        <button type="button" className="m-quick__item" onClick={() => go('rank')}>
+          <Icon name="rank" size={16} /> 榜单
+        </button>
         <button type="button" className="m-quick__item" onClick={() => go('new')}>
           <Icon name="tv" size={16} /> 新剧日历
         </button>
         <button type="button" className="m-quick__item" onClick={() => go('category')}>
           <Icon name="settings" size={16} /> 分类
-        </button>
-        <button type="button" className="m-quick__item" onClick={() => go('rank')}>
-          <Icon name="rank" size={16} /> 榜单
-        </button>
-        <button type="button" className="m-quick__item" onClick={() => go('downloads')}>
-          <Icon name="download" size={16} /> 下载
         </button>
       </div>
 

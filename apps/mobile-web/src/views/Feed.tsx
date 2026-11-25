@@ -3,7 +3,8 @@ import type { JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { CAN_PLAY_HEVC } from '../media-support.ts';
 import { api, coverOf, type CommentItem, type DanmakuItem, type FeedItem, type FeedTab, type PlayJob } from '../api.ts';
-import { useMaybeNav } from '../mobile/nav.tsx';
+import { useMaybeNav, type MRoute } from '../mobile/nav.tsx';
+import { Icon, Sheet, type IconName } from '../mobile/ui.tsx';
 import { useApp } from '../store.ts';
 import { DanmakuLayer } from '../ui/DanmakuLayer.tsx';
 import { DramaPlayer } from '../ui/DramaPlayer.tsx';
@@ -44,6 +45,33 @@ const TABS: Array<{ name: string; tab: FeedTab }> = [
   { name: '真人剧', tab: 'live' },
   { name: '推荐', tab: 'recommend' },
 ];
+
+/** 汉堡里的快捷入口（阶段 A）：榜单/下载等从底栏挪走后，在这里留一条通路。 */
+const QUICK: Array<{ route: MRoute; label: string; icon: IconName }> = [
+  { route: 'me', label: '我的', icon: 'me' },
+  { route: 'search', label: '搜索', icon: 'search' },
+  { route: 'rank', label: '榜单', icon: 'rank' },
+  { route: 'downloads', label: '下载', icon: 'download' },
+  { route: 'new', label: '新剧日历', icon: 'tv' },
+  { route: 'category', label: '分类', icon: 'filter' },
+];
+
+/** 推荐流顶栏的汉堡 / 搜索图标：线宽和 mobile/ui 的 Icon 对齐。 */
+function MenuGlyph(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+function SearchGlyph(): JSX.Element {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM16.5 16.5 21 21" />
+    </svg>
+  );
+}
 
 /** 左侧推荐卡：3D 倾斜放在内层，外层继续负责当前卡放大/滚动对齐。 */
 function FeedSideCard({
@@ -87,6 +115,9 @@ function FeedSideCard({
  * 右侧操作栏 / 底部信息 / 顶部推荐分类都保持沉浸式布局。
  */
 export function Feed(): JSX.Element {
+  /** 手机壳里才有的顶栏入口（汉堡 + 搜索）；桌面端不渲染 */
+  const mob = useMaybeNav();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [items, setItems] = useState<FeedItem[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -493,6 +524,18 @@ export function Feed(): JSX.Element {
       onClick={wake}
       onTouchStart={wake}
     >
+      {/* 手机端顶栏（阶段 A）：汉堡 + 居中频道 + 搜索，全部浮在视频上 */}
+      {mob !== null && (
+        <div className="m-feedtop" data-hidden={!chromeVisible}>
+          <button type="button" className="m-feedtop__btn" aria-label="快捷入口" onClick={() => setMenuOpen(true)}>
+            <MenuGlyph />
+          </button>
+          <button type="button" className="m-feedtop__btn" aria-label="搜索" onClick={() => mob.go('search')}>
+            <SearchGlyph />
+          </button>
+        </div>
+      )}
+
       {/* 左侧推荐片单：补上视频缩小后空出来的位置；当前条高亮并自动滚到中间 */}
       <aside className="feedv__side" aria-label="推荐片单">
         <div className="feedv__side-head">
@@ -709,6 +752,27 @@ export function Feed(): JSX.Element {
             </div>
           </aside>
         </div>
+      )}
+
+      {mob !== null && (
+        <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="快捷入口">
+          <div className="m-quickgrid">
+            {QUICK.map((entry) => (
+              <button
+                key={entry.route}
+                type="button"
+                className="m-quickgrid__item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  mob.go(entry.route);
+                }}
+              >
+                <Icon name={entry.icon} size={20} />
+                <span>{entry.label}</span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
       )}
 
       {note !== '' && <div className="feedv__toast">{note}</div>}

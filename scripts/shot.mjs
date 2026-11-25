@@ -9,7 +9,7 @@ import path from 'node:path';
 import { Browser, sleep } from './cdp.mjs';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:5881';
-const VIEWS = process.argv.slice(3).length > 0 ? process.argv.slice(3) : ['theater', 'feed', 'rank', 'library', 'downloads', 'settings', 'category', 'newreleases', 'search'];
+const VIEWS = process.argv.slice(3).length > 0 ? process.argv.slice(3) : ['theater', 'feed', 'library', 'me', 'rank', 'search', 'category', 'newreleases', 'downloads'];
 const OUT = path.resolve('.tmp/shots');
 fs.mkdirSync(OUT, { recursive: true });
 

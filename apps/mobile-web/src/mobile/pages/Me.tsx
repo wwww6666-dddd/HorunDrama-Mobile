@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { JSX, MouseEvent } from 'react';
 import { api, type Settings as SettingsData } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
-import { PageTitle } from '../PageTitle.tsx';
 import { useNav } from '../nav.tsx';
 import { Group, Icon, Row, Segmented, Sheet, Switch } from '../ui.tsx';
 import { useApp, type Accent } from '../../store.ts';
@@ -35,6 +34,8 @@ export function Me(): JSX.Element {
   const [loginOpen, setLoginOpen] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  /** 「设置」快捷卡滚到这里（播放 + 外观两组，阶段 A 不做独立设置页） */
+  const settingsRef = useRef<HTMLDivElement | null>(null);
 
   // 手机号登录
   const [phone, setPhone] = useState('');
@@ -177,8 +178,6 @@ export function Me(): JSX.Element {
 
   return (
     <>
-      <PageTitle title="我的" sub="账号、播放、连接、关于" />
-
       <button type="button" className="m-profile" onClick={() => (account?.loggedIn === true ? void refreshAccount() : setLoginOpen(true))}>
         {account?.loggedIn === true && account.avatar !== '' ? (
           <img className="m-profile__avatar" src={account.avatar} alt="" />
@@ -197,6 +196,30 @@ export function Me(): JSX.Element {
           <Icon name="chevron" size={18} />
         </span>
       </button>
+
+      {/* 快捷卡（阶段 A）：下载 / 收藏 / 追更 / 设置 */}
+      <div className="m-me-cards">
+        <button type="button" className="m-me-card" onClick={() => go('downloads')}>
+          <Icon name="download" size={19} />
+          <span>下载</span>
+        </button>
+        <button type="button" className="m-me-card" onClick={() => go('library')}>
+          <Icon name="heart" size={19} />
+          <span>收藏</span>
+        </button>
+        <button type="button" className="m-me-card" onClick={() => go('library')}>
+          <Icon name="bookmark" size={19} />
+          <span>追更</span>
+        </button>
+        <button
+          type="button"
+          className="m-me-card"
+          onClick={() => settingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          <Icon name="settings" size={19} />
+          <span>设置</span>
+        </button>
+      </div>
 
       {account?.loggedIn === true ? (
         <Group title="账号">
@@ -218,6 +241,9 @@ export function Me(): JSX.Element {
           <Row label="手机号登录" hint="本机不需要密码" right={<span className="m-btn m-btn--mini m-btn--primary">登录</span>} onClick={() => setLoginOpen(true)} />
         </Group>
       )}
+
+      {/* 「设置」快捷卡的落点：播放 + 外观两组从这里开始 */}
+      <div ref={settingsRef} />
 
       <Group title="播放">
         <Row

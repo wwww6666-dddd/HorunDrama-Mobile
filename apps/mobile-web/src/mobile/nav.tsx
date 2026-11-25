@@ -4,10 +4,13 @@ import { createContext, useContext } from 'react';
 
 export type MRoute = 'home' | 'feed' | 'rank' | 'library' | 'me' | 'search' | 'about' | 'new' | 'category' | 'downloads';
 
+/**
+ * 底栏 4 个 Tab，顺序按官方：首页（推荐流）、剧场（书城）、追剧、我的。
+ * 榜单不再是底栏——入口移到剧场胶囊和搜索页的榜单区（阶段 A 定的口径）。
+ */
 export const TABS: Array<{ route: MRoute; label: string }> = [
+  { route: 'feed', label: '首页' },
   { route: 'home', label: '剧场' },
-  { route: 'feed', label: '推荐' },
-  { route: 'rank', label: '榜单' },
   { route: 'library', label: '追剧' },
   { route: 'me', label: '我的' },
 ];
