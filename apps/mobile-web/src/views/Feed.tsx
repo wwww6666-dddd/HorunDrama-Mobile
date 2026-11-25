@@ -143,8 +143,10 @@ export function Feed(): JSX.Element {
   const wake = useCallback((): void => {
     setChromeVisible(true);
     if (chromeTimer.current !== null) window.clearTimeout(chromeTimer.current);
+    // 手机端推荐流顶栏（汉堡/频道/搜索）常驻，不像桌面播放器那样 2.6s 自动收
+    if (mob !== null) return;
     chromeTimer.current = window.setTimeout(() => setChromeVisible(false), 2600);
-  }, []);
+  }, [mob]);
   useEffect(() => {
     wake();
     return () => {
@@ -883,6 +885,8 @@ function FeedSlide({
   const [liked, setLiked] = useState(false);
   const [digg, setDigg] = useState(item.diggCount);
   const [favorited, setFavorited] = useState(false);
+  /** 追剧状态：官方头像下的「+」就是追剧；没有作者字段，用封面当头像不伪造人 */
+  const [following, setFollowing] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   /** 清晰度和播放页共用同一个偏好（localStorage: horun-quality） */
   const [quality, setQuality] = useState<string>(() => localStorage.getItem('horun-quality') ?? '1080p');
@@ -1099,6 +1103,7 @@ function FeedSlide({
     if (!active) return;
     void api.likeFor(item.seriesId).then((r) => setLiked(r.liked)).catch(() => undefined);
     void api.favoriteFor(item.seriesId).then((r) => setFavorited(r.favorite)).catch(() => undefined);
+    void api.followFor(item.seriesId).then((r) => setFollowing(r.following)).catch(() => undefined);
   }, [active, item.seriesId]);
 
   const goPlay = (): void => {
@@ -1135,6 +1140,21 @@ function FeedSlide({
     }
   };
 
+  const toggleFollow = async (): Promise<void> => {
+    try {
+      const res = await api.toggleFollow({
+        seriesId: item.seriesId,
+        seriesTitle: item.title,
+        cover: item.cover,
+        episodeCount: item.episodeCount,
+      });
+      setFollowing(res.following);
+      onNote(res.following ? '已加入追剧' : '已取消追剧');
+    } catch (err) {
+      onNote(`追剧失败：${(err as Error).message}`);
+    }
+  };
+
   const share = async (): Promise<void> => {
     const link = `https://novelquickapp.com/hongguo/ug/pages/video-animation-share?book_id=${item.seriesId}&video_id=${item.episodeId}`;
     try {
@@ -1161,6 +1181,8 @@ function FeedSlide({
 
   const ready = url !== '';
   const waiting = active && !ready && error === '';
+  /** 底部细进度线：只有拿到时长才画，直连流时长可能是 0 */
+  const progress = job !== null && job.durationSec > 0 ? Math.min(1, Math.max(0, time / job.durationSec)) : 0;
 
   // 按真实视频比例把画面装进舞台：横屏 16:9、竖屏 9:16 都不会把控制条拉成全宽
   const frameStyle = useMemo(() => {
@@ -1242,6 +1264,41 @@ function FeedSlide({
         )}
         <div className="feedv__shade" aria-hidden="true" />
 
+        {/* 手机端照官方：剧名压在画面右上、作者头像+追剧「+」、收藏落在画面右下、底部细进度线 */}
+        {mob !== null && (
+          <>
+            <p className="feedv__vt-title">《{item.title}》</p>
+            <div className="feedv__author">
+              <div className="feedv__author-pic" style={{ backgroundImage: `url("${item.cover}")` }}>
+                <button
+                  type="button"
+                  className="feedv__author-add"
+                  data-on={following}
+                  onClick={() => void toggleFollow()}
+                  aria-label={following ? '取消追剧' : '追剧'}
+                >
+                  {following ? '✓' : '+'}
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="feedv__fav"
+              onClick={() => void toggleFavorite()}
+              aria-label={favorited ? '取消收藏' : '收藏'}
+            >
+              <span className="feedv__fav-icon" data-on={favorited}>
+                {favorited ? '★' : '☆'}
+              </span>
+              <span className="feedv__fav-label">{favorited ? '已收藏' : '收藏'}</span>
+            </button>
+            <div className="feedv__prog" aria-hidden="true">
+              <span className="feedv__prog-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
+              <span className="feedv__prog-dot" style={{ left: `${Math.round(progress * 100)}%` }} />
+            </div>
+          </>
+        )}
+
         {danmakuPrefs.enabled && (
           <DanmakuLayer
             items={shownDanmaku}
@@ -1255,7 +1312,7 @@ function FeedSlide({
         {(qualityBusy || autoHd) && ready && (
           <div className="feedv__quality-busy" role="status">
             <span className="feedv__spinner" />
-            {autoHd ? '流畅画面已开始，正在准备高清…' : '正在切换清晰度…'}
+            {autoHd ? '流畅秒开 · 高清准备中' : '正在切换清晰度…'}
           </div>
         )}
 
@@ -1286,9 +1343,13 @@ function FeedSlide({
           </div>
         )}
 
-      {/* 右侧操作：顺序对齐官方「收藏 / 评论 / 点赞 / 分享」 */}
+      {/* 右侧操作：顺序对齐官方「收藏 / 评论 / 点赞 / 分享」；手机端收藏落在画面上，这里只留后三项 */}
       <div className="feedv__rail">
-        <button className="feedv__rail-btn" onClick={() => void toggleFavorite()} title={favorited ? '取消收藏' : '收藏'}>
+        <button
+          className="feedv__rail-btn feedv__rail-btn--fav"
+          onClick={() => void toggleFavorite()}
+          title={favorited ? '取消收藏' : '收藏'}
+        >
           <span className="feedv__rail-icon" data-on={favorited}>
             {favorited ? '★' : '☆'}
           </span>
@@ -1306,7 +1367,7 @@ function FeedSlide({
           <span>点赞</span>
           <b className="feedv__rail-num">{fmtCount(digg)}</b>
         </button>
-        <button className="feedv__rail-btn" onClick={() => void share()} title="分享">
+        <button className="feedv__rail-btn feedv__rail-btn--share" onClick={() => void share()} title="分享">
           <span className="feedv__rail-icon">↗</span>
           <span>分享</span>
         </button>
@@ -1375,7 +1436,7 @@ function FeedSlide({
             </button>
             {item.heatText !== '' && (
               <button type="button" className="feedv__rank" onClick={() => mob.go('rank')}>
-                <span className="feedv__rank-trophy">🔥</span>
+                <span className="feedv__rank-trophy">🏆</span>
                 <span className="feedv__rank-text">{item.heatText}</span>
                 <span className="feedv__rank-arrow">›</span>
               </button>
