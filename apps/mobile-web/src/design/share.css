@@ -80,6 +80,7 @@
 }
 
 .sharedlg__label {
+  display: block;
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
@@ -90,6 +91,55 @@
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* 粘贴链接：输入框占满整行，动作按钮叠在输入框内侧，避免在手机上被挤成一条缝 */
+.sharedlg__field {
+  position: relative;
+}
+
+.sharedlg__input--link {
+  padding-right: 64px;
+}
+
+.sharedlg__field-action {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  min-width: 52px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--hover-wash);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sharedlg__field-action--clear {
+  min-width: 28px;
+  width: 28px;
+  padding: 0;
+  font-size: 13px;
+}
+
+.sharedlg__field-action:hover {
+  filter: brightness(1.08);
+}
+
+.sharedlg__btn--block {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.sharedlg__example {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-3);
 }
 
 .sharedlg__input {
@@ -107,6 +157,12 @@
 
 .sharedlg__input::placeholder {
   color: var(--text-3);
+}
+
+.sharedlg__input:focus {
+  outline: none;
+  border-color: var(--m-accent, var(--accent));
+  box-shadow: 0 0 0 3px rgba(255, 90, 55, 0.14);
 }
 
 .sharedlg__btn {
@@ -257,14 +313,33 @@
 .sharedlg--light .sharedlg__input::placeholder {
   color: #aaa39a !important;
 }
+.sharedlg--light .sharedlg__input:focus {
+  border-color: var(--m-accent, var(--accent)) !important;
+  box-shadow: 0 0 0 3px rgba(255, 90, 55, 0.12) !important;
+}
+.sharedlg--light .sharedlg__field-action {
+  background: #f4efe9 !important;
+  color: #6e675f !important;
+}
+.sharedlg--light .sharedlg__field-action:hover {
+  background: #ece5dd !important;
+}
+.sharedlg--light .sharedlg__example {
+  color: #9b9389 !important;
+}
 .sharedlg--light .sharedlg__btn {
   border-color: #e6e1da !important;
   color: #3a342d !important;
 }
 .sharedlg--light .sharedlg__btn--primary {
   border-color: transparent !important;
-  background: var(--accent) !important;
+  background: var(--m-accent, var(--accent)) !important;
   color: #ffffff !important;
+}
+.sharedlg--light .sharedlg__btn--primary:disabled {
+  background: #f3eee8 !important;
+  color: #8a8177 !important;
+  opacity: 1;
 }
 .sharedlg--light .sharedlg__hint code {
   background: #f1ede7 !important;

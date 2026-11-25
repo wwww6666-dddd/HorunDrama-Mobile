@@ -82,6 +82,23 @@ export function ShareDialog(): JSX.Element | null {
     });
   };
 
+  /** 触屏上少一次长按：优先读系统剪贴板，失败就提示长按粘贴。 */
+  const pasteFromClipboard = async (): Promise<void> => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      const trimmed = clip.trim();
+      if (trimmed === '') {
+        setNote('剪贴板里还没有文字，复制红果分享链接后再来。');
+        return;
+      }
+      setText(trimmed);
+      setPreview(null);
+      setNote('');
+    } catch {
+      setNote('系统没给剪贴板权限，长按输入框选“粘贴”即可。');
+    }
+  };
+
   /** 解析链接 → 补齐剧集信息 → 弹卡片（不跳转） */
   const resolveShared = async (): Promise<void> => {
     const parsed = parseSharedLink(text);
@@ -149,7 +166,7 @@ export function ShareDialog(): JSX.Element | null {
             <h2 className="sharedlg__title">{light ? '识剧' : '分享续播'}</h2>
             <p className="sharedlg__sub">
               {light
-                ? '把红果分享链接粘进来，先识别出是哪部剧、第几集、从哪开始，再决定要不要看。识剧按链接解析，不做拍照识别。'
+                ? '粘贴红果分享链接，识别剧名、集数和起点；只按链接解析，不做拍照识别。'
                 : '分享出去的是红果原链接；把别人发的链接粘回来，先给你看是哪部剧、第几集、从哪开始，再决定要不要看。'}
             </p>
           </div>
@@ -187,11 +204,20 @@ export function ShareDialog(): JSX.Element | null {
         )}
 
         <section className="sharedlg__block">
-          <p className="sharedlg__label">{light ? '粘贴红果分享链接' : '打开别人分享的链接'}</p>
-          <div className="sharedlg__row">
+          <label className="sharedlg__label" htmlFor="share-link-input">
+            {light ? '粘贴红果分享链接' : '打开别人分享的链接'}
+          </label>
+          <div className="sharedlg__field">
             <input
-              className="sharedlg__input"
-              placeholder="粘贴红果分享链接（…video-animation-share?video_id=…&vid=…）"
+              id="share-link-input"
+              className="sharedlg__input sharedlg__input--link"
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              placeholder="粘贴分享链接"
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
@@ -201,14 +227,33 @@ export function ShareDialog(): JSX.Element | null {
                 if (e.key === 'Enter') void resolveShared();
               }}
             />
-            <button
-              className="sharedlg__btn sharedlg__btn--primary"
-              disabled={busy || text.trim() === ''}
-              onClick={() => void resolveShared()}
-            >
-              {busy ? '解析中…' : '解析链接'}
-            </button>
+            {text.trim() === '' ? (
+              <button type="button" className="sharedlg__field-action" onClick={() => void pasteFromClipboard()}>
+                粘贴
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="sharedlg__field-action sharedlg__field-action--clear"
+                aria-label="清空链接"
+                onClick={() => {
+                  setText('');
+                  setPreview(null);
+                  setNote('');
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
+          <button
+            className="sharedlg__btn sharedlg__btn--primary sharedlg__btn--block"
+            disabled={busy || text.trim() === ''}
+            onClick={() => void resolveShared()}
+          >
+            {busy ? '解析中…' : '解析链接'}
+          </button>
+          <p className="sharedlg__example">整条粘贴即可，自动识别剧号、集号和开始时间。</p>
 
           {preview !== null && (
             <div className="sharedlg__preview">
@@ -233,7 +278,11 @@ export function ShareDialog(): JSX.Element | null {
           )}
         </section>
 
-        {note !== '' && <p className="sharedlg__note">{note}</p>}
+        {note !== '' && (
+          <p className="sharedlg__note" role="status" aria-live="polite">
+            {note}
+          </p>
+        )}
 
         <p className="sharedlg__foot">
           {light

@@ -2224,7 +2224,7 @@ html.m-mode .sharedlg__head {
 }
 
 html.m-mode .sharedlg__head > div {
-  padding-right: 46px;
+  padding-right: 54px;
 }
 
 html.m-mode .sharedlg__title {
@@ -2235,19 +2235,19 @@ html.m-mode .sharedlg__title {
 
 html.m-mode .sharedlg__sub {
   margin-top: 8px;
-  font-size: 12.5px;
-  line-height: 1.66;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.52);
 }
 
 html.m-mode .sharedlg__close {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 html.m-mode .sharedlg__block {
@@ -2259,9 +2259,9 @@ html.m-mode .sharedlg__block {
 }
 
 html.m-mode .sharedlg__label {
-  margin-bottom: 9px;
+  margin-bottom: 10px;
   font-family: var(--m-font);
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.82);
 }
@@ -2274,14 +2274,35 @@ html.m-mode .sharedlg__row {
 
 html.m-mode .sharedlg__input {
   width: 100%;
-  height: 42px;
-  padding: 0 12px;
-  border-radius: 11px;
+  height: 54px;
+  padding: 0 16px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.055);
   color: #fff;
   font-family: var(--m-font);
-  font-size: 12px;
+  font-size: 16px;
+}
+
+html.m-mode .sharedlg__input--link {
+  padding-right: 76px;
+}
+
+html.m-mode .sharedlg__field-action {
+  right: 5px;
+  min-width: 60px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-family: var(--m-font);
+  font-size: 14px;
+}
+
+html.m-mode .sharedlg__field-action--clear {
+  min-width: 44px;
+  width: 44px;
+  padding: 0;
+  font-size: 15px;
 }
 
 html.m-mode .sharedlg__input::placeholder {
@@ -2290,14 +2311,26 @@ html.m-mode .sharedlg__input::placeholder {
 
 html.m-mode .sharedlg__btn {
   width: 100%;
-  height: 42px;
-  border-radius: 11px;
+  height: 52px;
+  border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.86);
   font-family: var(--m-font);
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 500;
+}
+
+html.m-mode .sharedlg__btn--block {
+  margin-top: 12px;
+}
+
+html.m-mode .sharedlg__example {
+  margin-top: 10px;
+  font-family: var(--m-font);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.42);
 }
 
 html.m-mode .sharedlg__btn--primary {
@@ -2314,9 +2347,9 @@ html.m-mode .sharedlg__btn--primary:hover:not(:disabled) {
 html.m-mode .sharedlg__hint,
 html.m-mode .sharedlg__note,
 html.m-mode .sharedlg__foot {
-  font-size: 11.5px;
+  font-size: 12.5px;
   line-height: 1.62;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.42);
 }
 
 html.m-mode .sharedlg__preview {
