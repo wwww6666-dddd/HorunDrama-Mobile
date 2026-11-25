@@ -35,7 +35,9 @@ try {
   await b.send('Page.reload');
   await sleep(1200);
 
-  // 预热一次推荐流：首个视口往往是冷启动，2~3 秒内可能还停在骨架屏
+  // 预热剧场与推荐流：首个视口往往是冷启动，否则 320×568 会截到骨架屏
+  await b.goto(`${BASE}/#/`);
+  await sleep(3200);
   await b.goto(`${BASE}/#/feed`);
   await sleep(3000);
 
@@ -52,7 +54,7 @@ try {
       const hash = view === 'theater' ? '#/' : `#/${view}`;
       await b.goto(`${BASE}/${hash}`);
       await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: width / 2, y: 160 });
-      await sleep(view === 'feed' ? 3200 : 1500);
+      await sleep(view === 'feed' ? 3200 : 2200);
       if (view === 'feed') {
         // 再晃一次，确保顶栏（汉堡/搜索）在快门按下时是显示的
         await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: width / 2, y: 220 });
