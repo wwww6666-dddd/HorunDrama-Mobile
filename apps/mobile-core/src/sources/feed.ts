@@ -9,7 +9,7 @@
  * - live / anime：短剧筛选里的「真人剧 / 漫剧」体裁
  * - follow：本机追更列表（上游关注流没有公开接口）
  */
-import { getClient, toDrama, withRetry } from './client.ts';
+import { fmtCount, getClient, toDrama, withRetry } from './client.ts';
 import { TtlCache } from '../util/cache.ts';
 import { listFollows } from '../store/progress.ts';
 import type { Drama } from '../types.ts';
@@ -55,8 +55,12 @@ async function enrich(items: SeriesSummary[]): Promise<FeedItem[]> {
   for (const summary of items) {
     const first = firstEpisode.get(summary.id);
     if (first === undefined) continue;
+    const drama = toDrama(summary);
+    // 上游 SeriesSummary 根本没有 heat 字段，推荐流的热度胶囊此前永远是空的（D-40）。
+    // 这里用它确实给了的第一集点赞数当热度文案，措辞保持"赞"，不当成热度编造。
+    if (drama.heatText === '' && first.digg > 0) drama.heatText = `${fmtCount(first.digg)} 赞`;
     out.push({
-      ...toDrama(summary),
+      ...drama,
       episodeId: first.episodeId,
       episodeNo: first.no,
       diggCount: first.digg,

@@ -17,6 +17,7 @@ import { getSettings } from '../store/settings.ts';
 import { createLogger } from '../util/log.ts';
 import { getJob, startUpgradeJob } from './jobs.ts';
 import { existingMediaAny } from './transcode.ts';
+import { warmWebStream } from '../sources/webplay.ts';
 
 const log = createLogger('preload');
 
@@ -62,11 +63,19 @@ async function runLoop(): Promise<void> {
     const gen = generation;
     servedGen = gen;
     let done = 0;
+    let fallback = 0;
     for (const id of plan.episodeIds) {
       if (gen !== generation) break; // 被新计划取代：外层换成新计划重来
       if (existingMediaAny(id, getSettings().enhanceVideo, plan.hevc) !== null) continue;
       const job = await startUpgradeJob(id, plan.quality, plan.hevc).catch(() => null);
-      if (job === null) continue;
+      if (job === null) {
+        // 高清取不到（App 源匿名设备注册失败 / 上游限流）时，
+        // 至少把官网 360p 地址预热好：切到这一集能秒开，不会卡在空流（D-47）。
+        // 用 fire-and-forget，别让网络超时把整条预加载队列拖住。
+        warmWebStream(id);
+        fallback += 1;
+        continue;
+      }
       done += 1;
       // 串行：等这一集真的转好（或失败）再开下一集，别和正在播的那集抢 CPU
       while (gen === generation) {
@@ -76,7 +85,11 @@ async function runLoop(): Promise<void> {
       }
     }
     if (gen === generation) {
-      log.info(`预加载完成（世代 ${gen}，处理 ${done} 集 / 计划 ${plan.episodeIds.length} 集）`);
+      log.info(
+        `预加载完成（世代 ${gen}，转好 ${done} 集` +
+          (fallback > 0 ? `，${fallback} 集高清失败已预热 360p` : '') +
+          ` / 计划 ${plan.episodeIds.length} 集）`,
+      );
       return;
     }
   }

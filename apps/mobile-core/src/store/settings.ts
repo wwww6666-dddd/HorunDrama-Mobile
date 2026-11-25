@@ -52,13 +52,31 @@ export interface Settings {
 
 const FILE = path.join(DATA_ROOT, 'settings.json');
 
+/**
+ * 默认下载目录。
+ *
+ * Windows 上 os.homedir() 在 C 盘，一集 1080p 就上百 MB，几十集能把系统盘塞满（D-18）。
+ * 有 D 盘就用 D:\HorunDrama\Downloads，没有才退回系统下载目录；
+ * HORUN_DOWNLOAD_DIR 仍然最高优先级。
+ */
+function defaultDownloadDir(): string {
+  const env = process.env.HORUN_DOWNLOAD_DIR ?? '';
+  if (env !== '') return path.resolve(env);
+  if (process.platform === 'win32') {
+    const d = 'D:\\HorunDrama\\Downloads';
+    try {
+      if (fs.existsSync('D:\\')) return d;
+    } catch {
+      /* 盘符探测失败就走系统目录 */
+    }
+  }
+  return path.join(os.homedir(), 'Downloads', 'HorunDrama');
+}
+
 const DEFAULTS: Settings = {
   mediaCacheDir: path.join(DATA_ROOT, 'cache', 'media'),
   mediaCacheMB: 4096,
-  downloadDir:
-    process.env.HORUN_DOWNLOAD_DIR !== undefined && process.env.HORUN_DOWNLOAD_DIR !== ''
-      ? path.resolve(process.env.HORUN_DOWNLOAD_DIR)
-      : path.join(os.homedir(), 'Downloads', 'HorunDrama'),
+  downloadDir: defaultDownloadDir(),
   defaultQuality: '1080p',
   downloadConcurrency: 2,
   autoPlayNext: true,

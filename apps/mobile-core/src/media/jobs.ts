@@ -378,6 +378,27 @@ export interface StartOptions {
   wait?: boolean;
 }
 
+/**
+ * 后台升降清：**不阻塞** /api/play 的返回。
+ *
+ * 早先是 `await startUpgrade(...)`：App 源要解析签名/设备，正常 1~3s，
+ * 上游匿名设备注册失败时（D-47）要 8s+ 才失败 —— 这段时间用户盯着"准备中"，
+ * 秒开也就没意义了。现在先把 360p/已缓存低档返回，任务在后台跑；
+ * 前端 `upgradeJobId` 没拿到就按 1.2s / 3min 的节奏自己来问（Play.tsx 里已有）。
+ */
+function attachUpgrade(job: Job, episodeId: string, target: string, allowHevc: boolean): void {
+  void startUpgrade(episodeId, target, allowHevc)
+    .then((hd) => {
+      if (hd !== null) {
+        job.upgradeJobId = hd.id;
+        job.upgradeQuality = target;
+      } else if (job.mode === 'direct') {
+        job.message = `${target} 暂时取不到，先用流畅播放`;
+      }
+    })
+    .catch(() => undefined);
+}
+
 /** 开始（或复用）一集的播放准备。返回立刻可见的 job。 */
 export async function startEpisode(episodeId: string, quality = 'auto', options: StartOptions = {}): Promise<Job> {
   const want = quality === '' ? 'auto' : quality;
@@ -399,11 +420,7 @@ export async function startEpisode(episodeId: string, quality = 'auto', options:
     const lower = existingMediaAny(episodeId, getSettings().enhanceVideo, allowHevc);
     if (lower !== null) {
       const job = readyFileJob(episodeId, lower.file, lower.definition, want, `先用已缓存的 ${lower.definition}`);
-      if (allowUpgrade) {
-        const hd = await startUpgrade(episodeId, want, allowHevc);
-        job.upgradeJobId = hd?.id ?? '';
-        job.upgradeQuality = want;
-      }
+      if (allowUpgrade) attachUpgrade(job, episodeId, want, allowHevc);
       return job;
     }
     // 等文件（播放页）：没缓存就直接起 App 源任务，由前端轮询进度后再播。
@@ -438,13 +455,8 @@ export async function startEpisode(episodeId: string, quality = 'auto', options:
       const job = readyDirectJob(episodeId, want, '流畅播放（可拖动，高清后台准备中）');
       if (allowUpgrade && (want === 'auto' || isHd(want))) {
         const target = isHd(want) ? want : '720p';
-        const hd = await startUpgrade(episodeId, target, allowHevc);
-        if (hd !== null) {
-          job.upgradeJobId = hd.id;
-          job.upgradeQuality = target;
-        } else if (isHd(want)) {
-          job.message = `${target} 暂时取不到，先用流畅播放`;
-        }
+        // 不 await：先把 360p 地址返回给前端起播，高清在后台起任务（见 attachUpgrade）
+        attachUpgrade(job, episodeId, target, allowHevc);
       }
       return job;
     }

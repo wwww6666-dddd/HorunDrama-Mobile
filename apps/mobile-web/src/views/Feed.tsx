@@ -449,6 +449,22 @@ export function Feed(): JSX.Element {
     void load(true, false);
   }, [load]);
 
+  // 连续刷集不等待：在这一条停留 2.5s 后，把**下一条**的 360p 地址预热好，
+  // 高清也在后台起任务（和电脑端播放页 25s 时的 prewarm + startUpgrade 同一思路）。
+  // 快速划走就取消，避免一排后台转码把当前这集挤到最后。
+  useEffect(() => {
+    const next = items[index + 1];
+    if (next === undefined) return;
+    const quality = localStorage.getItem('horun-quality') ?? '1080p';
+    const timer = window.setTimeout(() => {
+      void api.prewarm(next.episodeId).catch(() => undefined);
+      void api
+        .startUpgrade(next.episodeId, quality === '' ? '1080p' : quality, CAN_PLAY_HEVC)
+        .catch(() => undefined);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [index, items]);
+
   const scrollTo = (i: number): void => {
     const el = scrollerRef.current;
     if (el !== null) el.scrollTo({ top: i * el.clientHeight, behavior: 'smooth' });
@@ -873,6 +889,8 @@ function FeedSlide({
   const [qualityNonce, setQualityNonce] = useState(0);
   /** 切清晰度/等准备时的轻量提示；不卸载播放器、不中断当前画面 */
   const [qualityBusy, setQualityBusy] = useState(false);
+  /** 自动升高清中：先播 360p，高清转好再换源 */
+  const [autoHd, setAutoHd] = useState(false);
   /** 起播点：切清晰度时保留当前位置；换集时归零 */
   const [startAt, setStartAt] = useState(0);
   /** 当前视频宽高比：竖屏短剧 / 横屏短剧都按真实比例贴合 */
@@ -946,11 +964,48 @@ function FeedSlide({
     };
 
     void (async () => {
+      /** 已经先播上 360p？高清失败时就不用再退一次。 */
+      let smoothShown = false;
       try {
-        // wait=1：和剧场页同一套"等文件再播"，避免推荐页默默播 360p
-        let current = await api.play(item.episodeId, quality, true, CAN_PLAY_HEVC, false, true);
+        // 推荐流是"刷"的场景：等本地 1080p 转码 10s+ 才出画面没人受得了。
+        // 第一步只拿官网 360p 直连（本地代理，几十毫秒就 ready），先把画面放出来。
+        const smooth = await api
+          .play(item.episodeId, 'smooth', false, false, false, false)
+          .catch(() => null);
         if (cancelled) return;
-        setJob(current);
+        if (smooth !== null && smooth.state === 'ready' && smooth.url !== '') {
+          smoothShown = true;
+          setUrl(smooth.url);
+          setQualityBusy(false);
+        } else {
+          setQualityBusy(true);
+        }
+
+        if (quality === 'smooth') {
+          if (!smoothShown) setError('这一集暂时取不到流，稍后重试');
+          return;
+        }
+
+        // 快速划走就别起转码任务，免得一排后台任务把当前这集的高清挤到最后（1.2s 足够判断"停留"）
+        if (smoothShown) {
+          setAutoHd(true);
+          await sleep(1200);
+          if (cancelled) return;
+        }
+
+        // 高清只起任务，不动正在播的 360p；就绪后原地换源。用 startUpgrade 而不是
+        // play(wait=1)：后者会在服务端长轮询到转码结束才返回，等于把"秒开"抵消掉。
+        const hd = await api.startUpgrade(item.episodeId, quality, CAN_PLAY_HEVC).catch(() => null);
+        if (cancelled) return;
+        if (hd === null) {
+          setQualityBusy(false);
+          setAutoHd(false);
+          if (smoothShown) onNote('高清线路暂时取不到，先看流畅线路');
+          else setError('这一集准备失败，稍后重试');
+          return;
+        }
+        setJob(hd);
+        let current = hd;
         while (!cancelled && current.state !== 'ready' && current.state !== 'failed') {
           await sleep(1200);
           if (cancelled) return;
@@ -960,37 +1015,28 @@ function FeedSlide({
         }
         if (cancelled) return;
         if (current.state === 'ready') {
+          // 从 360p 换到高清：先把当前位置写进 startAt，XgPlayer 在 canplay 时 seek 回来
+          if (timeRef.current > 1) setStartAt(timeRef.current);
+          setJob(current);
           setUrl(current.url);
           setQualityBusy(false);
+          setAutoHd(false);
         } else {
           setQualityBusy(false);
+          setAutoHd(false);
+          if (smoothShown) {
+            onNote('高清没准备好，先看流畅线路');
+            return;
+          }
           if (!(await fallbackSmooth())) {
             setError(current.error !== '' ? current.error : '这一集准备失败');
-          }
-          return;
-        }
-
-        // 命中低档缓存时后台还在升档：就绪后原地换源，保留进度
-        const upgradeId = current.upgradeJobId ?? '';
-        if (upgradeId !== '') {
-          for (let i = 0; i < 80; i += 1) {
-            await sleep(1500);
-            if (cancelled) return;
-            const hd = await api.prepare(upgradeId).catch(() => null);
-            if (cancelled || hd === null) return;
-            if (hd.state === 'ready') {
-              if (timeRef.current > 1) setStartAt(timeRef.current);
-              setJob((prev) => (prev === null ? prev : { ...prev, definition: hd.definition, upgradeJobId: '' }));
-              setUrl(hd.url);
-              return;
-            }
-            if (hd.state === 'failed') return;
           }
         }
       } catch (err) {
         if (cancelled) return;
         setQualityBusy(false);
-        if (!(await fallbackSmooth())) setError((err as Error).message);
+        setAutoHd(false);
+        if (!smoothShown && !(await fallbackSmooth())) setError((err as Error).message);
       }
     })();
 
@@ -1206,10 +1252,10 @@ function FeedSlide({
           />
         )}
 
-        {qualityBusy && ready && (
+        {(qualityBusy || autoHd) && ready && (
           <div className="feedv__quality-busy" role="status">
             <span className="feedv__spinner" />
-            正在切换清晰度…
+            {autoHd ? '流畅画面已开始，正在准备高清…' : '正在切换清晰度…'}
           </div>
         )}
 
@@ -1329,8 +1375,8 @@ function FeedSlide({
             </button>
             {item.heatText !== '' && (
               <button type="button" className="feedv__rank" onClick={() => mob.go('rank')}>
-                <span className="feedv__rank-trophy">🏆</span>
-                <span className="feedv__rank-text">热度 {item.heatText}</span>
+                <span className="feedv__rank-trophy">🔥</span>
+                <span className="feedv__rank-text">{item.heatText}</span>
                 <span className="feedv__rank-arrow">›</span>
               </button>
             )}

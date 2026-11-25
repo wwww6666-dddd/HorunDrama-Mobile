@@ -39,7 +39,9 @@ function mergeSections(sections: Array<{ tabName: string; items: Drama[] }>): It
       if (!seen.has(drama.seriesId)) {
         seen.set(drama.seriesId, {
           drama,
-          tag: drama.tags[0] ?? section.tabName,
+          // 上游目录项没有题材字段（tags 为空），不要拿「为你推荐」这种区块名
+          // 冒充分类；宁可显示连载状态（D-40）。
+          tag: drama.tags[0] ?? (drama.finished ? '已完结' : '短剧'),
         });
       }
     }

@@ -119,11 +119,30 @@ export function normalizeCover(raw: string): string {
   return raw;
 }
 
-function heatText(n: number | undefined): string {
-  if (n === undefined || n <= 0) return '';
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}亿热度`;
-  if (n >= 10_000) return `${Math.round(n / 10_000)}万热度`;
-  return `${n}热度`;
+/**
+ * 千分位 + 万/亿缩写：只用于"真实计数"（点赞、评论、集数），
+ * 不参与热度估算，避免把推导出来的数字说成上游给的（D-40）。
+ */
+export function fmtCount(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0';
+  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1).replace(/\.0$/, '')}亿`;
+  if (n >= 10_000) return `${(n / 10_000).toFixed(1).replace(/\.0$/, '')}万`;
+  return String(Math.round(n));
+}
+
+/**
+ * 把上游的计数变成人话。
+ *
+ * 优先级：官方热度分 → 总播放量 → 点赞数。三者都是上游真实字段，
+ * 只是不同接口给的不一样（discover 一个都不给、batch 详情才有），
+ * 所以展示时保留各自的量词，不统一改写成「热度」（D-40）。
+ */
+export function heatLabel(s: SeriesSummary): string {
+  const extra = s as SeriesSummary & { heat?: number; play_count?: number; digg_count?: number };
+  if ((extra.heat ?? 0) > 0) return `${fmtCount(extra.heat as number)} 热度`;
+  if ((extra.play_count ?? 0) > 0) return `${fmtCount(extra.play_count as number)} 播放`;
+  if ((extra.digg_count ?? 0) > 0) return `${fmtCount(extra.digg_count as number)} 赞`;
+  return '';
 }
 
 export function toDrama(s: SeriesSummary): Drama {
@@ -135,7 +154,7 @@ export function toDrama(s: SeriesSummary): Drama {
     intro: s.description ?? '',
     episodeCount: s.episode_count ?? 0,
     finished: extra.status === 1,
-    heatText: heatText(extra.heat),
+    heatText: heatLabel(s),
     tags: extra.category !== undefined && extra.category !== '' ? [extra.category] : [],
   };
 }

@@ -2,7 +2,7 @@
  * 目录类能力：首页、搜索、榜单、筛选、分类。
  * 只做"上游 → 我们的形状"，不做缓存策略之外的事。
  */
-import { getClient, normalizeCover, toDrama, withRetry } from './client.ts';
+import { getClient, heatLabel, normalizeCover, toDrama, withRetry } from './client.ts';
 import { createLogger } from '../util/log.ts';
 import { CursorPager, TtlCache } from '../util/cache.ts';
 import type { Drama, FilterRow, HomeSection, Paged, RankEntry, RankGroup, RankPage } from '../types.ts';
@@ -21,7 +21,15 @@ export function home(): Promise<HomeSection[]> {
     const client = await getClient();
     const sections: HomeSection[] = [];
 
-    const discovered = await withRetry('书城推荐', () => client.discover());
+    // 冷启动时一次目录请求要 2s 左右，串行就是 8s+ 首屏骨架（实测 8.9s）。
+    // 「上新日历」和「书城推荐」互不依赖，并行发；只有第 2 页必须等 cursor。
+    const [discoveredSettled, freshSettled] = await Promise.allSettled([
+      withRetry('书城推荐', () => client.discover()),
+      withRetry('上新日历', () => client.newReleases()),
+    ]);
+
+    if (discoveredSettled.status === 'rejected') throw discoveredSettled.reason;
+    const discovered = discoveredSettled.value;
     if (discovered.items.length > 0) {
       sections.push({
         tabType: 'recommend',
@@ -32,14 +40,20 @@ export function home(): Promise<HomeSection[]> {
 
     if (discovered.has_more === true && discovered.cursor !== undefined && discovered.cursor !== '') {
       const cursor = discovered.cursor;
-      const more = await withRetry('书城推荐(第2页)', () => client.discover({ cursor })).catch(() => null);
-      if (more !== null && more.items.length > 0) {
-        sections.push({ tabType: 'more', tabName: '继续发现', items: more.items.map(toDrama) });
-      }
+      // 第 2 页不进首屏关键路径：一次目录请求要 2.5s 左右，为了多 6 部剧把首屏
+      // 从 4s 拖到 8s 不划算。这里后台补进缓存数组，下一次进剧场就能看到。
+      void withRetry('书城推荐(第2页)', () => client.discover({ cursor }))
+        .then((more) => {
+          if (more.items.length === 0) return;
+          const items = more.items.map(toDrama);
+          sections.push({ tabType: 'more', tabName: '继续发现', items });
+          void fillDirStats(items);
+        })
+        .catch(() => undefined);
     }
 
-    try {
-      const fresh = await withRetry('上新日历', () => client.newReleases());
+    if (freshSettled.status === 'fulfilled') {
+      const fresh = freshSettled.value;
       if (fresh.items.length > 0) {
         sections.push({
           tabType: 'new',
@@ -55,12 +69,47 @@ export function home(): Promise<HomeSection[]> {
           ),
         });
       }
-    } catch (err) {
-      log.warn(`上新日历失败: ${(err as Error).message}`);
+    } else {
+      log.warn(`上新日历失败: ${(freshSettled.reason as Error).message}`);
     }
 
+    // 补详情最多等 1.2s：冷启动时批量详情要好几秒，首屏不能陪它等。
+    // 超时后这个 Promise 还在跑，补到的字段会写回同一批对象（缓存里也一起生效），
+    // 下一次进剧场（命中 180s 缓存）就有集数和热度了。
+    await Promise.race([
+      fillDirStats(sections.flatMap((s) => s.items)),
+      new Promise((resolve) => setTimeout(resolve, 1200)),
+    ]);
     return sections;
   });
+}
+
+/**
+ * 目录摘要缺字段：discover / newReleases 只给 id+标题+封面，集数、完结状态、
+ * 热度全是空（D-40：剧场卡片只能显示「短剧」，看不出多少集）。
+ * 批量详情补一次；失败就保持原样 —— 目录页不能因为"补装饰"整个报错。
+ */
+async function fillDirStats(items: Drama[]): Promise<void> {
+  const need = items.filter((d) => d.episodeCount <= 0 || d.heatText === '');
+  const ids = [...new Set(need.map((d) => d.seriesId))].slice(0, 18);
+  if (ids.length === 0) return;
+  try {
+    const client = await getClient();
+    const details = await withRetry('目录补详情', () => client.getSeriesBatch(ids));
+    const map = new Map(details.map((d) => [d.series.id, d.series]));
+    for (const item of need) {
+      const s = map.get(item.seriesId);
+      if (s === undefined) continue;
+      if (item.episodeCount <= 0) item.episodeCount = s.episode_count ?? 0;
+      if (item.heatText === '') item.heatText = heatLabel(s);
+      if (s.status === 1) item.finished = true;
+      if (item.tags.length === 0 && s.category !== undefined && s.category !== '') {
+        item.tags = [s.category];
+      }
+    }
+  } catch (err) {
+    log.warn(`目录补详情失败（保持原样）: ${(err as Error).message}`);
+  }
 }
 
 // ---------------------------------------------------------------- 搜索

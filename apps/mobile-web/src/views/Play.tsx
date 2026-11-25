@@ -246,9 +246,13 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     };
   }, []);
 
-  // 起播放任务：优先本地缓存（完整时长、能拖进度条）；没有缓存就"等它准备好再播"。
-  // 不做"先 360p / 秒开流"的折中 —— 管道流/直连的进度条体验都不如本地 mp4，
-  // 而前后各 N 集的预加载会把后续集提前转好，追剧时基本不用等。
+  // 起播放任务：本地缓存优先；没有缓存就**先用官网 360p 秒开**，高清在后台转。
+  //
+  // 和电脑端 `wait=1`（等本地 mp4 再播）的差别是有意的：手机独立运行时转码跑在
+  // 手机 CPU 上，1080p 一集要几十秒，等文件等于把每次切集都变成"转圈几十秒"。
+  // 官网 360p 是 H.264 明文、能 Range，所以先播它既秒开也能拖；`upgradeJobId`
+  // 在后台把用户选的档位转好，由下面的升级 effect 原地换源、保留进度。
+  // 只有连 360p 都取不到时才盖等待卡（那才是真的要等转码）。
   useEffect(() => {
     let cancelled = false;
     // 换集（选集 / 上一集下一集 / 自动连播）：**立刻把上一集停下**。
@@ -302,13 +306,17 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
           true,
           CAN_PLAY_HEVC && !liveFallback.current,
           false,
-          // wait=1：没有缓存时等高清文件转好再播，不先给 360p/秒开流
-          true,
+          // wait=0：没有缓存时先给官网 360p 直连（秒开），高清由后台任务升上去。
+          false,
         );
         if (cancelled) return;
         applyJob(current);
         setPlayingDefinition(current.definition);
         setUpgradeJobId(current.upgradeJobId);
+        // 秒开的是流畅线、高清还在后台转：给用户一句话交代，别让他以为"选了 1080p 却只有 360p"
+        if (current.mode === 'direct' && current.upgradeJobId !== '' && quality !== 'smooth') {
+          flash(`流畅线路秒开，${quality === '' ? '720p' : quality} 正在后台准备`);
+        }
         while (!cancelled && current.state !== 'ready' && current.state !== 'failed') {
           await new Promise((r) => window.setTimeout(r, 1200));
           if (cancelled) return;
@@ -349,11 +357,15 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     };
   }, [route.episodeId, quality, qualityNonce]);
 
-  // 上游不总是肯给高清：正在播 360p 时，先立刻问一次高清任务，之后每 3 分钟再试。
-  // 通了就无缝换源（用户不需要手动重试）。
+  // 上游不总是肯给高清：正在播 360p（或已缓存的低档）时，先立刻问一次高清任务，
+  // 之后每 3 分钟再试。通了就无缝换源（用户不需要手动重试）。
+  //
+  // 服务端现在不阻塞 /api/play 去升降清（秒开优先），所以 job 上的 upgradeJobId
+  // 常常是空的；这里补上"前端自己问"的兜底，两种 mode 都要覆盖。
   useEffect(() => {
-    if (quality === 'smooth') return;
-    if (job?.mode !== 'direct' || job.state !== 'ready') return;
+    if (quality === '' || quality === 'smooth') return;
+    if (job?.state !== 'ready') return;
+    if (job.definition === quality) return;
     if (upgradeJobId !== '' || upgrade !== null) return;
     let cancelled = false;
     const ask = async (): Promise<void> => {
@@ -369,7 +381,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       window.clearTimeout(first);
       window.clearInterval(timer);
     };
-  }, [job?.mode, job?.state, job?.jobId, upgradeJobId, upgrade, quality, route.episodeId]);
+  }, [job?.state, job?.jobId, job?.definition, upgradeJobId, upgrade, quality, route.episodeId]);
 
   // 后台高清任务：转好就无缝换源（保留当前进度），失败就继续播流畅版
   useEffect(() => {
@@ -1354,7 +1366,20 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
                 <span style={{ width: `${Math.round((waitingJob?.progress ?? 0) * 100)}%` }} />
               </div>
             )}
-            {waitingJob?.state !== 'failed' && (
+            {waitingJob?.state === 'failed' ? (
+              // 失败态给一个明确的重试入口：上游是"匿名设备注册失败/限流"这类瞬时故障，
+              // 重新取流通常一次就通；不用逼用户退出重进或去点选集。
+              <div className="play__waiting-actions">
+                <button
+                  type="button"
+                  className="play__waiting-retry"
+                  onClick={() => setQualityNonce((n) => n + 1)}
+                >
+                  重试
+                </button>
+                <p className="play__waiting-hint">还不行就换一集，或稍等一两分钟再点重试</p>
+              </div>
+            ) : (
               <p className="play__waiting-hint">准备好后播本地文件：时长准确、进度条能拖；看剧时前后几集会提前转好</p>
             )}
           </div>
