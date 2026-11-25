@@ -53,6 +53,7 @@ const PATHS = {
   tv: 'M4 6h16v11H4zM9 21h6',
   mute: 'M4 9h4l5-4v14l-5-4H4zM18 9l4 6M22 9l-4 6',
   filter: 'M4 7h16M7 12h10M10 17h4',
+  trash: 'M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13M10 11v6M14 11v6',
 } as const;
 
 export type IconName = keyof typeof PATHS;

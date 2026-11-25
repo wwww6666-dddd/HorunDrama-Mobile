@@ -1,22 +1,80 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
-import { api, coverOf, type Paged } from '../../api.ts';
+import { api, coverOf, type Drama, type Paged, type RankEntry } from '../../api.ts';
 import { APP_AUTHOR, APP_VERSION, FEEDBACK_URL, GITHUB_URL, copyToClipboard, openExternalUrl } from '../../app-info.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
+import { useApp } from '../../store.ts';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Row, Skeleton } from '../ui.tsx';
 
+/**
+ * 搜索页（B5，对齐官方 7.4.5.32）。
+ *
+ * 官方结构从上到下：返回 + 搜索框 + 搜索 → 小果Ai/识剧/排行/上新/漫剧 胶囊 →
+ * 搜索历史两列 → 猜你想搜 3 卡 → 热搜榜/预约榜 3 列大卡。
+ * 官方第三个「热点话题榜」没有上游数据源，按开发文档口径只做两个 Tab。
+ */
+
+const HISTORY_KEY = 'horun-search-history-v1';
+const HISTORY_MAX = 6;
+
+const RANK_BOARDS = [
+  { id: 'ranklist_hot_search_sc', label: '热搜榜' },
+  { id: 'ranklist_subscribe', label: '预约榜' },
+] as const;
+
+type SeriesEntry = Extract<RankEntry, { kind: 'series' }>;
+
+function isSeriesEntry(entry: RankEntry): entry is SeriesEntry {
+  return entry.kind === 'series';
+}
+
+function readHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === 'string' && v.trim() !== '').slice(0, HISTORY_MAX);
+  } catch {
+    return [];
+  }
+}
+
+function episodesText(drama: Drama): string {
+  return drama.episodeCount > 0 ? `全${drama.episodeCount}集` : '短剧';
+}
+
+function rotate<T>(items: T[], offset: number, count: number): T[] {
+  if (items.length === 0) return [];
+  const out: T[] = [];
+  for (let i = 0; i < Math.min(count, items.length); i += 1) {
+    const item = items[(offset + i) % items.length];
+    if (item !== undefined) out.push(item);
+  }
+  return out;
+}
+
 export function Search(): JSX.Element {
-  const { go, openDetail } = useNav();
-  const [query, setQuery] = useState(() => localStorage.getItem('horun-search-query') ?? '');
-  const [submitted, setSubmitted] = useState('');
-  const [suggest, setSuggest] = useState<Array<{ text: string; keyword?: string }>>([]);
+  const { back, go, openDetail } = useNav();
+  const openShare = useApp((s) => s.openShare);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const timer = useRef<number | null>(null);
+  const noteTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState('');
+  const [suggest, setSuggest] = useState<Array<{ text: string; keyword?: string }>>([]);
+  const [history, setHistory] = useState<string[]>(readHistory);
+  const [note, setNote] = useState('');
+  const [guessOffset, setGuessOffset] = useState(0);
+  const [board, setBoard] = useState<string>(RANK_BOARDS[0].id);
+
+  const flash = (text: string): void => {
+    setNote(text);
+    if (noteTimer.current !== null) window.clearTimeout(noteTimer.current);
+    noteTimer.current = window.setTimeout(() => setNote(''), 2600);
+  };
 
   useEffect(() => {
     if (timer.current !== null) window.clearTimeout(timer.current);
@@ -30,7 +88,7 @@ export function Search(): JSX.Element {
         .suggest(value)
         .then((rows) => setSuggest(rows.slice(0, 8)))
         .catch(() => setSuggest([]));
-    }, 200);
+    }, 180);
     return () => {
       if (timer.current !== null) window.clearTimeout(timer.current);
     };
@@ -41,64 +99,157 @@ export function Search(): JSX.Element {
     return api.search(submitted, 1, '', signal);
   }, [submitted]);
 
-  const run = (value: string): void => {
+  const hotRank = useAsync((signal) => api.rank('all', RANK_BOARDS[0].id, '', signal), []);
+  const boardPage = useAsync((signal) => api.rank('all', board, '', signal), [board]);
+
+  const remember = (value: string): void => {
     const q = value.trim();
     if (q === '') return;
-    localStorage.setItem('horun-search-query', q);
+    const next = [q, ...history.filter((item) => item !== q)].slice(0, HISTORY_MAX);
+    setHistory(next);
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      localStorage.setItem('horun-search-query', q);
+    } catch {
+      /* 本地存储被禁时只影响历史，不影响搜索 */
+    }
+  };
+
+  const run = (value: string): void => {
+    const q = value.trim();
+    if (q === '') {
+      inputRef.current?.focus();
+      return;
+    }
+    remember(q);
     setQuery(q);
     setSubmitted(q);
     setSuggest([]);
+    setNote('');
     inputRef.current?.blur();
   };
 
+  const clearHistory = (): void => {
+    setHistory([]);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+      localStorage.removeItem('horun-search-query');
+    } catch {
+      /* ignore */
+    }
+    flash('搜索历史已清空');
+  };
+
+  const pickQuick = (kind: string): void => {
+    if (kind === 'ai') {
+      inputRef.current?.focus();
+      flash('小果 AI 暂未接入，先用关键词搜');
+      return;
+    }
+    if (kind === 'scan') {
+      openShare();
+      return;
+    }
+    if (kind === 'rank') {
+      go('rank');
+      return;
+    }
+    if (kind === 'new') {
+      go('new');
+      return;
+    }
+    go('category');
+  };
+
   const items = result.data?.items ?? [];
-  const hot = useAsync((signal) => api.home(signal), []);
-  const hotTitles = Array.from(new Set((hot.data ?? []).flatMap((section) => section.items.map((d) => d.title)))).slice(0, 10);
+  const hotSeries = (hotRank.data?.items ?? []).filter(isSeriesEntry);
+  const guess = rotate(hotSeries, guessOffset, 3);
+  const boardSeries = (boardPage.data?.items ?? []).filter(isSeriesEntry).slice(0, 9);
+  const placeholder = history[0] ?? '搜剧名、演员、剧情关键词';
 
   return (
-    <>
-      <div className="m-searchbar">
-        <Icon name="search" size={17} />
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          placeholder="想看点什么都行"
-          enterKeyHint="search"
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') run(query);
-          }}
-        />
-        {query !== '' && (
-          <button
-            type="button"
-            className="m-searchbar__clear"
-            aria-label="清空"
-            onClick={() => {
-              setQuery('');
-              setSubmitted('');
-              inputRef.current?.focus();
+    <div className="m-searchpage">
+      <header className="ms-head">
+        <button type="button" className="ms-back" aria-label="返回" onClick={back}>
+          <Icon name="back" size={22} />
+        </button>
+        <div className="ms-box">
+          <Icon name="search" size={17} />
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            placeholder={placeholder}
+            enterKeyHint="search"
+            aria-label="搜索"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (submitted !== '') setSubmitted('');
             }}
-          >
-            <Icon name="close" size={15} />
-          </button>
-        )}
-        <button type="button" className="m-searchbar__go" onClick={() => run(query)}>
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') run(query);
+            }}
+          />
+          {query !== '' && (
+            <button
+              type="button"
+              className="ms-clear"
+              aria-label="清空"
+              onClick={() => {
+                setQuery('');
+                setSubmitted('');
+                setSuggest([]);
+                inputRef.current?.focus();
+              }}
+            >
+              <Icon name="close" size={15} />
+            </button>
+          )}
+        </div>
+        <button type="button" className="ms-go" onClick={() => run(query)}>
           搜索
+        </button>
+      </header>
+
+      <div className="ms-quick" role="toolbar" aria-label="快捷入口">
+        <button type="button" className="ms-qchip" data-kind="ai" onClick={() => pickQuick('ai')}>
+          <span className="ms-qicon ms-qicon--ai">AI</span>
+          小果Ai
+        </button>
+        <button type="button" className="ms-qchip" data-kind="scan" onClick={() => pickQuick('scan')}>
+          <span className="ms-qicon ms-qicon--scan"><Icon name="search" size={13} /></span>
+          识剧
+        </button>
+        <button type="button" className="ms-qchip" data-kind="rank" onClick={() => pickQuick('rank')}>
+          <span className="ms-qicon ms-qicon--rank"><Icon name="rank" size={13} /></span>
+          排行
+        </button>
+        <button type="button" className="ms-qchip" data-kind="new" onClick={() => pickQuick('new')}>
+          <span className="ms-qicon ms-qicon--new"><Icon name="play" size={13} /></span>
+          上新
+        </button>
+        <button type="button" className="ms-qchip" data-kind="comic" onClick={() => pickQuick('comic')}>
+          <span className="ms-qicon ms-qicon--comic"><Icon name="bookmark" size={13} /></span>
+          漫剧
         </button>
       </div>
 
-      {suggest.length > 0 && submitted === '' && (        <div className="m-suggest">
+      {note !== '' && <p className="ms-note" role="status">{note}</p>}
+
+      {query.trim() !== '' && submitted === '' && suggest.length > 0 && (
+        <div className="ms-suggest">
           {suggest.map((row) => (
             <button
               key={`${row.text}-${row.keyword ?? ''}`}
               type="button"
-              className="m-suggest__item"
+              className="ms-suggest__item"
               onClick={() => {
                 const id = row.keyword ?? '';
                 if (/^\d{6,25}$/.test(id)) {
+                  remember(row.text);
                   setQuery(row.text);
+                  setSubmitted('');
+                  setSuggest([]);
                   openDetail(id);
                 } else {
                   run(row.text);
@@ -112,127 +263,184 @@ export function Search(): JSX.Element {
         </div>
       )}
 
-      {result.loading && <Skeleton rows={4} />}
-      {result.error !== null && <Empty text={result.error} />}
-
-      {items.length > 0 && (
-        <div className="m-list">
-          {items.map((drama) => (
-            <button type="button" className="m-lrow" key={drama.seriesId} onClick={() => openDetail(drama.seriesId)}>
-              <span className="m-lrow__cover m-lrow__cover--wide">
-                <img src={drama.cover !== '' ? coverOf(drama) : `/api/poster/${drama.seriesId}`} alt="" loading="lazy" decoding="async" />
-              </span>
-              <div className="m-lrow__main">
-                <p className="m-lrow__title">{drama.title}</p>
-                <p className="m-lrow__meta">
-                  {[drama.episodeCount > 0 ? `${drama.episodeCount} 集` : '短剧', drama.finished ? '完结' : '', drama.heatText]
-                    .filter((t) => t !== '')
-                    .join(' · ')}
-                </p>
-                {drama.intro !== '' && <p className="m-lrow__intro">{drama.intro}</p>}
-              </div>
-              <Icon name="chevron" size={17} />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {!result.loading && submitted !== '' && items.length === 0 && result.error === null && <Empty text={`没有找到「${submitted}」`} />}
-      {submitted === '' && suggest.length === 0 && (
+      {submitted !== '' ? (
+        <section className="ms-results" aria-label="搜索结果">
+          <div className="ms-results__head">
+            <h2>搜索结果</h2>
+            {!result.loading && result.error === null && <span>{items.length} 部</span>}
+          </div>
+          {result.loading && <Skeleton rows={3} />}
+          {result.error !== null && <Empty text={result.error} />}
+          {!result.loading && result.error === null && items.length === 0 && (
+            <div className="ms-empty">
+              <p>没有找到「{submitted}」</p>
+              <button type="button" onClick={() => run('重生')}>搜「重生」试试</button>
+            </div>
+          )}
+          {!result.loading &&
+            result.error === null &&
+            items.map((drama) => (
+              <button
+                type="button"
+                className="ms-rrow"
+                key={drama.seriesId}
+                onClick={() => openDetail(drama.seriesId)}
+              >
+                <span className="ms-rrow__cover">
+                  <img
+                    src={drama.cover !== '' ? coverOf(drama) : `/api/poster/${drama.seriesId}`}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </span>
+                <span className="ms-rrow__main">
+                  <span className="ms-rrow__title">{drama.title}</span>
+                  <span className="ms-rrow__meta">
+                    {[episodesText(drama), drama.finished ? '完结' : '', drama.heatText]
+                      .filter((text) => text !== '')
+                      .join(' · ')}
+                  </span>
+                  {drama.intro !== '' && <span className="ms-rrow__intro">{drama.intro}</span>}
+                </span>
+                <Icon name="chevron" size={16} />
+              </button>
+            ))}
+        </section>
+      ) : (
         <>
-          <RankPreview onOpen={openDetail} onMore={() => go('rank')} />
-          {hotTitles.length > 0 && (
-            <section className="m-hot">
-              <h3>热门剧名</h3>
-              <div className="m-chips m-chips--wrap">
-                {hotTitles.map((title) => (
-                  <button key={title} type="button" className="m-chip m-chip--sm" onClick={() => run(title)}>
-                    {title}
+          {history.length > 0 && (
+            <section className="ms-sec" aria-label="搜索历史">
+              <div className="ms-sechead">
+                <h2>搜索历史</h2>
+                <button type="button" className="ms-iconbtn" aria-label="清空搜索历史" onClick={clearHistory}>
+                  <Icon name="trash" size={20} />
+                </button>
+              </div>
+              <div className="ms-history">
+                {history.map((word) => (
+                  <button type="button" className="ms-history__item" key={word} title={word} onClick={() => run(word)}>
+                    {word}
                   </button>
                 ))}
               </div>
             </section>
           )}
-          <p className="m-foot">搜不到就换个词：剧名、演员、剧情关键词都行</p>
+
+          {(guess.length > 0 || hotRank.loading) && (
+            <section className="ms-sec" aria-label="猜你想搜">
+              <div className="ms-sechead">
+                <h2>猜你想搜</h2>
+                <button
+                  type="button"
+                  className="ms-iconbtn"
+                  aria-label="换一批"
+                  onClick={() => {
+                    setGuessOffset((offset) => offset + 3);
+                  }}
+                >
+                  <Icon name="refresh" size={20} />
+                </button>
+              </div>
+              {hotRank.loading && <Skeleton rows={2} />}
+              {hotRank.error !== null && <p className="ms-dim">{hotRank.error}</p>}
+              {hotSeries.length > 0 && (
+                <div className="ms-guess">
+                  {guess.map((entry) => (
+                    <GuessCard key={entry.drama.seriesId} entry={entry} onOpen={openDetail} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          <section className="ms-rankpanel" aria-label="榜单">
+            <div className="ms-rtabs" role="tablist" aria-label="榜单分类">
+              {RANK_BOARDS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={item.id === board}
+                  className="ms-rtab"
+                  data-active={item.id === board}
+                  onClick={() => setBoard(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {boardPage.loading && <Skeleton rows={3} />}
+            {boardPage.error !== null && <Empty text={boardPage.error} />}
+            {!boardPage.loading && boardPage.error === null && boardSeries.length === 0 && (
+              <p className="ms-dim">榜单暂时没有数据</p>
+            )}
+            {!boardPage.loading && boardPage.error === null && boardSeries.length > 0 && (
+              <div className="ms-rgrid">
+                {boardSeries.map((entry, index) => (
+                  <RankCard
+                    key={entry.drama.seriesId}
+                    entry={entry}
+                    fallbackRank={index + 1}
+                    showNew={board === 'ranklist_subscribe' || entry.drama.tags.includes('新剧')}
+                    onOpen={openDetail}
+                  />
+                ))}
+              </div>
+            )}
+
+            <button type="button" className="ms-rankmore" onClick={() => go('rank')}>
+              查看完整榜单
+              <Icon name="chevron" size={14} />
+            </button>
+          </section>
         </>
       )}
-    </>
+    </div>
   );
 }
 
-const RANK_BOARDS = [
-  { id: 'ranklist_hot_search_sc', label: '热搜榜' },
-  { id: 'ranklist_subscribe', label: '预约榜' },
-] as const;
-
-/**
- * 搜索页榜单区（阶段 A）：榜单从底栏挪到这里。
- * 只取前 5 名，「完整榜单」跳 #/rank（Rank 页仍是二级页，深链不变）。
- */
-function RankPreview({ onOpen, onMore }: { onOpen: (id: string) => void; onMore: () => void }): JSX.Element {
-  const [board, setBoard] = useState<string>(RANK_BOARDS[0].id);
-  const page = useAsync((signal) => api.rank('all', board, '', signal), [board]);
-  const items = (page.data?.items ?? []).slice(0, 5);
-
+function GuessCard({ entry, onOpen }: { entry: SeriesEntry; onOpen: (id: string) => void }): JSX.Element {
+  const heat = entry.score !== '' ? entry.score : entry.drama.heatText;
   return (
-    <section className="m-rankpreview" aria-label="榜单">
-      <div className="m-rankpreview__head">
-        <div className="m-rtabs" role="tablist" aria-label="榜单分类">
-          {RANK_BOARDS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="tab"
-              className="m-rtab"
-              data-active={b.id === board}
-              onClick={() => setBoard(b.id)}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <button type="button" className="m-rankpreview__more" onClick={onMore}>
-          完整榜单 ›
-        </button>
-      </div>
+    <button type="button" className="ms-gcard" onClick={() => onOpen(entry.drama.seriesId)}>
+      <span className="ms-gcard__poster">
+        <img src={coverOf(entry.drama)} alt="" loading="lazy" decoding="async" />
+        <span className="ms-heat">{heat !== '' ? heat : episodesText(entry.drama)}</span>
+      </span>
+      <span className="ms-gcard__title">{entry.drama.title}</span>
+      <span className="ms-gcard__meta">
+        {[episodesText(entry.drama), entry.drama.finished ? '完结' : ''].filter((text) => text !== '').join(' · ')}
+      </span>
+    </button>
+  );
+}
 
-      {page.loading && <Skeleton rows={3} />}
-      {page.error !== null && <Empty text={page.error} />}
-
-      {items.map((entry, index) => {
-        if (entry.kind === 'actor') {
-          return (
-            <div className="m-lrow" key={`a-${entry.userId}`}>
-              <span className="m-lrow__no" data-top={index < 3}>{index + 1}</span>
-              <span className="m-lrow__avatar">
-                <img src={`/api/img?url=${encodeURIComponent(entry.avatar)}`} alt="" loading="lazy" decoding="async" />
-              </span>
-              <div className="m-lrow__main">
-                <p className="m-lrow__title">{entry.name}</p>
-                <p className="m-lrow__meta">演员</p>
-              </div>
-            </div>
-          );
-        }
-        return (
-          <button type="button" className="m-lrow" key={`s-${entry.drama.seriesId}`} onClick={() => onOpen(entry.drama.seriesId)}>
-            <span className="m-lrow__no" data-top={index < 3}>{index + 1}</span>
-            <span className="m-lrow__cover">
-              <img src={coverOf(entry.drama)} alt="" loading="lazy" decoding="async" />
-            </span>
-            <div className="m-lrow__main">
-              <p className="m-lrow__title">{entry.drama.title}</p>
-              <p className="m-lrow__meta">
-                {[entry.drama.episodeCount > 0 ? `${entry.drama.episodeCount} 集` : '短剧', entry.score !== '' ? entry.score : entry.drama.heatText]
-                  .filter((t) => t !== '')
-                  .join(' · ')}
-              </p>
-            </div>
-            <Icon name="chevron" size={17} />
-          </button>
-        );
-      })}
-    </section>
+function RankCard({
+  entry,
+  fallbackRank,
+  showNew,
+  onOpen,
+}: {
+  entry: SeriesEntry;
+  fallbackRank: number;
+  showNew: boolean;
+  onOpen: (id: string) => void;
+}): JSX.Element {
+  const rank = entry.rank > 0 ? entry.rank : fallbackRank;
+  return (
+    <button type="button" className="ms-rankcard" onClick={() => onOpen(entry.drama.seriesId)}>
+      <span className="ms-rankposter">
+        <img src={coverOf(entry.drama)} alt="" loading="lazy" decoding="async" />
+        <span className="ms-rankno" data-top={rank <= 3}>{rank}</span>
+        {showNew && <span className="ms-new">新剧</span>}
+      </span>
+      <span className="ms-rankcard__title">{entry.drama.title}</span>
+      <span className="ms-rankcard__meta">
+        {[entry.score, episodesText(entry.drama)].filter((text) => text !== '').join(' · ')}
+      </span>
+    </button>
   );
 }
 
@@ -290,5 +498,3 @@ export function About(): JSX.Element {
     </>
   );
 }
-
-

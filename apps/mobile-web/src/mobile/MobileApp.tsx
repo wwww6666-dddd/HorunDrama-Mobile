@@ -167,8 +167,9 @@ export function MobileApp(): JSX.Element {
     <NavContext.Provider value={nav}>
       <GlassDefs />
       <div className="m-app" data-route={route} data-tab={isTab}>
-        {/* Tab 页不设顶栏：内容直接顶到安全区；二级页固定 44dp 返回栏 + 居中 15sp 标题 */}
-        {!isTab && (
+        {/* Tab 页不设顶栏：内容直接顶到安全区；二级页固定 44dp 返回栏 + 居中 15sp 标题。
+            搜索页自带「返回 + 搜索框 + 搜索」头部，不再叠一层通用顶栏。 */}
+        {!isTab && route !== 'search' && (
           <header className="m-topbar" data-compact={scrolled || !isTab}>
             <button type="button" className="m-topbar__back" aria-label="返回" onClick={back}>
               <Icon name="back" size={19} />
