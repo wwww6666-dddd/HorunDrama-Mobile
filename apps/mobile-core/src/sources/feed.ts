@@ -32,7 +32,8 @@ export interface FeedPage {
   hasMore: boolean;
 }
 
-const cache = new TtlCache<FeedPage>(64, 60_000);
+/** 阶段 0：限流期把缓存拉到 180s——宁可看 3 分钟前的推荐流，也不给用户空屏（D-32）。 */
+const cache = new TtlCache<FeedPage>(64, 180_000);
 
 async function enrich(items: SeriesSummary[]): Promise<FeedItem[]> {
   const client = await getClient();

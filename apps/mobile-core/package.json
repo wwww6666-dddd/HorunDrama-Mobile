@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node --watch src/index.ts",
     "start": "node src/index.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test src/media/safe-name.test.cjs src/account/session-vault.test.cjs src/http/static-error.test.cjs"
   },
   "dependencies": {
     "openhongguo": "^0.3.0"

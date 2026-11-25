@@ -9,7 +9,8 @@ import type { Drama, FilterRow, HomeSection, Paged, RankEntry, RankGroup, RankPa
 
 const log = createLogger('catalog');
 
-const homeCache = new TtlCache<HomeSection[]>(4, 120_000);
+/** 阶段 0：首页缓存 180s，和推荐流对齐（限流期靠缓存顶住首屏，D-32）。 */
+const homeCache = new TtlCache<HomeSection[]>(4, 180_000);
 const detailCache = new TtlCache<SeriesDetail>(64, 120_000);
 const pager = new CursorPager<Drama>();
 

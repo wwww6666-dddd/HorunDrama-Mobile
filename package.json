@@ -12,6 +12,7 @@
     "dev": "node scripts/dev.mjs",
     "build": "pnpm --filter @horun/mobile-web run build",
     "start": "node apps/mobile-core/src/index.ts",
-    "typecheck": "pnpm -r --parallel run typecheck"
+    "typecheck": "pnpm -r --parallel run typecheck",
+    "test": "pnpm --filter @horun/mobile-core run test"
   }
 }
