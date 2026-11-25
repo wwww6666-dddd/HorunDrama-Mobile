@@ -1,0 +1,533 @@
+/* 推荐流：一屏一条，当前条自动播，右侧操作栏 + 底部信息 + 顶部推荐分类。 */
+
+.feedv {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #050505;
+  color: #fff;
+}
+
+.feedv--state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.feedv__scroller {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.feedv__scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.feedv__slide {
+  position: relative;
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+}
+
+.feedv__poster {
+  position: absolute;
+  inset: -6%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) brightness(0.38) saturate(1.15);
+  transform: scale(1.06);
+}
+
+.feedv__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 20%, transparent 55%, rgba(0, 0, 0, 0.78)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.35), transparent 40%);
+}
+
+.feedv__waiting {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+}
+
+.feedv__spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  animation: feedv-spin 0.9s linear infinite;
+}
+
+@keyframes feedv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.feedv__bar {
+  width: 180px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.feedv__bar span {
+  display: block;
+  height: 100%;
+  background: #ff4d2e;
+}
+
+.feedv__tabs {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 6;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(12, 10, 9, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.feedv__tab {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.feedv__tab:hover {
+  color: #fff;
+}
+
+.feedv__tab[data-active='true'] {
+  background: rgba(255, 255, 255, 0.94);
+  color: #161310;
+  font-weight: 600;
+}
+
+.feedv__rail {
+  position: absolute;
+  right: 18px;
+  bottom: 150px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.feedv__rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.feedv__rail-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.feedv__rail-icon[data-on='true'] {
+  color: #ff5b3d;
+  border-color: rgba(255, 91, 61, 0.65);
+}
+
+.feedv__rail-btn:hover .feedv__rail-icon {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.feedv__info {
+  position: absolute;
+  left: 28px;
+  bottom: 150px;
+  z-index: 5;
+  max-width: min(560px, 52vw);
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
+}
+
+.feedv__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.feedv__badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  background: #ff4d2e;
+  color: #fff;
+}
+
+.feedv__badge--ghost {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.feedv__title {
+  margin: 0 0 6px;
+  font-size: clamp(20px, 2vw, 26px);
+  line-height: 1.3;
+}
+
+.feedv__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.feedv__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.feedv__intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.82);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feedv__intro--open {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.feedv__info-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 简介区的「展开 / 查看详情」：之前用 ghost 按钮，压在亮画面上几乎看不清。
+   这里给实心底 + 描边 + 更亮的字，和右侧操作栏的视觉重量对齐。 */
+.feedv__info-actions .btn {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 999px;
+  background: rgba(16, 14, 12, 0.62);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.9);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.feedv__info-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.feedv__info-actions .btn--primary {
+  background: linear-gradient(160deg, #ff8a63, var(--ember));
+  border-color: transparent;
+  color: #fff;
+}
+
+/* 简介文字本身也提亮一点，避免压在浅色画面上发灰 */
+.feedv__intro {
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+.feedv__toast {
+  position: absolute;
+  left: 50%;
+  bottom: 148px;
+  translate: -50% 0;
+  z-index: 8;
+  max-width: 80vw;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(16, 13, 11, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 12px;
+  backdrop-filter: blur(14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feedv__more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  scroll-snap-align: start;
+}
+
+@media (max-width: 900px) {
+  .feedv__info {
+    left: 18px;
+    bottom: 128px;
+    max-width: 62vw;
+  }
+
+  .feedv__rail {
+    right: 10px;
+    bottom: 128px;
+  }
+
+}
+
+.feedv__rail-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* 底部 dock / 推荐页 tab：去硬边框、柔和底色、平滑过渡 */
+.dock {
+  border: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05) 55%, rgba(255, 255, 255, 0.12)),
+    rgba(18, 16, 14, 0.42);
+  box-shadow:
+    0 22px 50px -24px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  transition: background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+}
+
+.feedv__tabs {
+  border: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 60%, rgba(255, 255, 255, 0.1)),
+    rgba(12, 10, 9, 0.4);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    0 18px 40px -24px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background 0.3s var(--ease-out);
+}
+
+.feedv__tab {
+  transition:
+    color 0.25s var(--ease-out),
+    background 0.25s var(--ease-out),
+    box-shadow 0.25s var(--ease-out),
+    transform 0.25s var(--ease-out);
+}
+
+.feedv__tab[data-active='true'] {
+  background: color-mix(in srgb, var(--ember) 72%, transparent);
+  color: #fff;
+  box-shadow: 0 8px 20px -12px var(--ember);
+}
+
+/* 推荐页：播放器控制条抬到底部 dock 之上，避免重合 */
+.feedv .xgplayer-controls {
+  bottom: 84px;
+}
+
+/* 推荐页底部信息再抬高，彻底避开控制条 */
+.feedv__info {
+  bottom: 220px;
+}
+
+.feedv__rail {
+  bottom: 240px;
+}
+
+/* dock/tab 外框更柔：去掉内侧高光边，用半透明底色和柔和投影。
+   注意：这里以前对所有主题都压了同一块深色底，浅色主题下 dock 变成深棕色，
+   上面的字（--text-3 近黑）几乎看不见。深浅两套底必须分开写。 */
+.dock {
+  border: 0 !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 55%, rgba(255, 255, 255, 0.1)),
+    rgba(22, 18, 16, 0.52) !important;
+  backdrop-filter: blur(26px) saturate(1.7);
+  -webkit-backdrop-filter: blur(26px) saturate(1.7);
+  box-shadow:
+    0 18px 40px -26px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+:root[data-theme='light'] .dock {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 252, 247, 0.66) 58%, rgba(255, 248, 240, 0.84)) !important;
+  box-shadow:
+    0 18px 38px -24px rgba(90, 55, 35, 0.34),
+    0 1px 2px rgba(90, 55, 35, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96) !important;
+}
+
+.dock::before {
+  display: none !important;
+}
+
+/* dock 文字：比 --text-3 更实一点，浅色下也不会糊在背景里 */
+.dock__item {
+  color: var(--text-2);
+}
+
+.dock__item:hover {
+  color: var(--text-1);
+}
+
+.dock__item[data-active='true'] {
+  box-shadow: 0 8px 20px -14px var(--ember) !important;
+  color: var(--text-inverse);
+}
+
+.feedv__tabs {
+  box-shadow: 0 14px 34px -24px rgba(0, 0, 0, 0.62) !important;
+}
+
+/* info closer to bottom but still above controls */
+.feedv__info {
+  bottom: 172px;
+}
+
+.feedv__rail {
+  bottom: 202px;
+}
+
+/* feed is immersive: no dock safe-area, controls float above dock */
+.app__main[data-view='feed'] {
+  padding-bottom: 0;
+}
+
+/* 控制条抬到 dock 之上，并自带一条更深更亮的玻璃底：
+   推荐页画面很亮时，进度条贴在画面底部会看不清（用户反馈过） */
+.feedv .xgplayer-controls {
+  bottom: 92px !important;
+  height: 56px;
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.55) 34%, rgba(0, 0, 0, 0.9));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* 全屏时 dock 不在了，92px 的抬升会让进度条悬在半空 —— 回到屏幕最底部。
+   DramaPlayer 会把全屏状态写到 <html class="is-player-fullscreen">，
+   这里按 class 覆盖（:fullscreen 的匹配范围不可靠：全屏元素是播放器自己）。 */
+html.is-player-fullscreen .feedv .xgplayer-controls,
+.feedv .xgplayer:fullscreen .xgplayer-controls,
+.feedv .xgplayer.xgplayer-is-fullscreen .xgplayer-controls,
+.feedv .xgplayer.xgplayer-cssfullscreen .xgplayer-controls {
+  bottom: 0 !important;
+  height: 64px;
+  padding-bottom: 8px;
+}
+
+/* 窗口模式才需要给 dock 让位；全屏时 dock 本来就不显示 */
+html.is-player-fullscreen .dock {
+  display: none;
+}
+
+/* 进度条：加粗、提亮，未播放部分给足对比 */
+.feedv .xgplayer-progress-outer {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.feedv .xgplayer-progress.active .xgplayer-progress-outer {
+  height: 7px;
+}
+
+.feedv .xgplayer-progress-inner,
+.feedv .xgplayer-progress-cache {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.feedv .xgplayer-progress-played {
+  background: linear-gradient(90deg, #ff8a63, var(--ember));
+  box-shadow: 0 0 10px rgba(255, 77, 46, 0.65);
+}
+
+.feedv .xgplayer-time {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+.feedv .xgplayer-controls .xgplayer-progress-btn {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* dock 在推荐页会浮在画面上挡住内容：闲置 2.5 秒自动收起，鼠标一动就回来 */
+.dock[data-idle='true'] {
+  opacity: 0;
+  translate: -50% 12px;
+  pointer-events: none;
+  transition:
+    opacity 0.32s var(--ease-out),
+    translate 0.32s var(--ease-out);
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@horun/mobile-core",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "openhongguo": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

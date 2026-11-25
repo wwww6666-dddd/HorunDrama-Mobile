@@ -1,0 +1,74 @@
+/**
+ * 动效：只做"进入/切换/反馈"，不做装饰性抖动。
+ * 所有动画都要能被 prefers-reduced-motion 关掉。
+ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheen {
+  from {
+    background-position: -140% 0;
+  }
+  to {
+    background-position: 240% 0;
+  }
+}
+
+.view-enter {
+  animation: rise-in var(--dur-slow) var(--ease-out) both;
+}
+
+.fade-in {
+  animation: fade-in var(--dur-base) var(--ease-out) both;
+}
+
+/* 加载态：一道扫过的光，比转圈更符合玻璃质感 */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: rgba(242, 234, 224, 0.06);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.12) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: sheen 1.6s var(--ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

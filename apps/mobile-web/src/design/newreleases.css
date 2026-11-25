@@ -1,0 +1,186 @@
+/* 新剧 · 上新日历：日期条 + 列表。沿用玻璃卡片。 */
+
+.nr-dates {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  margin-bottom: var(--s-3);
+  scrollbar-width: thin;
+}
+
+.nr-date {
+  flex: 0 0 auto;
+  width: 62px;
+  padding: 8px 0 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.nr-date:hover {
+  border-color: var(--glass-border-strong);
+  color: var(--text-1);
+}
+
+.nr-date[data-active='true'] {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(180deg, #ff6a44, var(--ember));
+  box-shadow: var(--glow-ember);
+}
+
+.nr-date__week {
+  font-size: var(--fs-caption);
+  opacity: 0.8;
+}
+
+.nr-date__md {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.nr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.nr-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-highlight);
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.nr-row:hover {
+  border-color: var(--glass-border-strong);
+  transform: translateY(-1px);
+}
+
+.nr-cover {
+  width: 84px;
+  height: 112px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--hover-wash);
+}
+
+.nr-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nr-main {
+  min-width: 0;
+}
+
+.nr-title {
+  margin: 2px 0 6px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.nr-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.nr-heat {
+  color: #ffb08f;
+  font-weight: 600;
+}
+
+.nr-status {
+  padding: 1px 8px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border-strong);
+  color: var(--text-3);
+}
+
+.nr-status[data-online='true'] {
+  color: #8ee8b8;
+  border-color: rgba(47, 190, 118, 0.4);
+  background: rgba(47, 190, 118, 0.1);
+}
+
+.nr-status[data-online='false'] {
+  color: #ffb08f;
+  border-color: rgba(255, 106, 68, 0.4);
+  background: rgba(255, 77, 46, 0.1);
+}
+
+.nr-intro {
+  margin: 0;
+  font-size: var(--fs-caption);
+  line-height: var(--lh-body);
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nr-note {
+  margin: 6px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.nr-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nr-soon {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.nr-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-4) 0;
+}
+
+@media (max-width: 720px) {
+  .nr-row {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .nr-cover {
+    width: 64px;
+    height: 86px;
+  }
+
+  .nr-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+}

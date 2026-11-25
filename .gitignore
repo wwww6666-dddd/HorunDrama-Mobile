@@ -1,0 +1,38 @@
+# 依赖与包管理缓存（都在 D 盘，不进版本库）
+node_modules/
+.pnpm-store/
+.pnpm-cache/
+
+# 构建产物（由 pnpm build / build.ps1 生成，不入库）
+dist/
+dist-ssr/
+*.tsbuildinfo
+android/out/
+
+# 运行时数据与缓存（SQLite、会话、封面/视频缓存，不入库）
+data/
+
+# 临时目录与手工备份
+.tmp/
+.backup/
+.temp/
+
+# 官方对照样本（156MB APK + 截图 + 抽取素材，只在本地）
+reference/
+
+# 大体积二进制资源（ffmpeg / hgsigner / node 运行时等按需准备，不入库）
+apps/mobile-core/resources/**/*.exe
+android/assets/
+android/jniLibs/
+
+# 编辑器与系统垃圾
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 日志与环境变量
+*.log
+.env
+.env.*

@@ -1,0 +1,51 @@
+/* 弹幕层：从右往左飘；暂停时整层冻结，条目自然消失交给 animationend。 */
+
+.danmaku-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 64px;
+  /* 高度由「占屏比例」内联给出 */
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.danmaku-item {
+  position: absolute;
+  /* 关键：用 left 定位。用 right:0 再 translateX(100vw) 会多推一屏，条目永远在屏幕外 */
+  left: 0;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  padding: 0 4px;
+  font-size: var(--dm-size, 17px);
+  font-weight: var(--dm-weight, 700);
+  color: var(--dm-color, #fff);
+  opacity: var(--dm-opacity, 1);
+  /* 背景默认纯透明：只靠投影保证白字在亮画面上也能读 */
+  background: var(--dm-bg, transparent);
+  border-radius: 999px;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 0 4px rgba(0, 0, 0, 0.75),
+    0 0 10px rgba(0, 0, 0, 0.35);
+  animation-name: danmaku-move;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  will-change: transform;
+}
+
+.danmaku-layer[data-paused='true'] .danmaku-item {
+  animation-play-state: paused;
+}
+
+@keyframes danmaku-move {
+  from {
+    transform: translate(100vw, -50%);
+  }
+  to {
+    transform: translate(-100%, -50%);
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@horun/mobile-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/clean-dist.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "xgplayer": "^3.0.27",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4"
+  }
+}

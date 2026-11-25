@@ -1,0 +1,1034 @@
+/**
+ * 2.0.0 新增/重做的视觉层。
+ *
+ * 这里只放这一版新增的组件与覆盖规则（加载顺序在最后），旧样式先保留以避免
+ * 影响未改到的页面；后续清理时再逐段并回原文件。
+ */
+
+/* ============================================================
+   1) 顶部：透明渐变磨砂
+   ============================================================ */
+/* 顶栏：华为式透明玻璃光感。
+   - 顶栏 fixed 覆盖在页面上，main 加 padding-top；内容滚动时会经过顶栏后面，
+     backdrop-filter 才有真实的模糊源（之前内容在 grid 下一行，永远透不过来）；
+   - 背景只留很淡的主题色渐变 + 顶部柔光，不用 1px 白色高光/描边，避免白线；
+   - 深/浅主题分别用不同的透明度和 sheen，保证文字可读。 */
+.app {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background:
+    radial-gradient(80% 140% at 50% -30%, rgba(255, 255, 255, 0.16), transparent 66%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg-base) 24%, transparent),
+      color-mix(in srgb, var(--bg-base) 7%, transparent) 62%,
+      transparent
+    );
+  backdrop-filter: blur(24px) saturate(1.5) brightness(1.02);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.02);
+  border-bottom: 0;
+  box-shadow: 0 10px 26px -22px rgba(0, 0, 0, 0.45);
+}
+
+.app__main {
+  padding-top: var(--topbar-h);
+}
+
+/* 只有检测到新版本才出现；点击打开更新卡片 */
+.topbar__update {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--ember) 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ember) 14%, transparent);
+  color: var(--ember);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 0 18px -10px color-mix(in srgb, var(--ember) 70%, transparent);
+}
+
+.topbar__update:hover {
+  border-color: color-mix(in srgb, var(--ember) 72%, transparent);
+  background: color-mix(in srgb, var(--ember) 22%, transparent);
+}
+
+.topbar__update span {
+  font-size: 13px;
+  line-height: 1;
+}
+
+:root[data-theme='light'] .topbar__update {
+  background: color-mix(in srgb, var(--ember) 10%, #fff 12%);
+}
+
+/* 不要再加 topbar::after 的浅色渐变：它在浅色主题下就是一条很显眼的白线 */
+.topbar::after {
+  display: none;
+}
+
+:root[data-theme='light'] .topbar {
+  background:
+    radial-gradient(80% 140% at 50% -30%, rgba(255, 255, 255, 0.24), transparent 68%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg-base) 26%, transparent),
+      color-mix(in srgb, var(--bg-base) 8%, transparent) 62%,
+      transparent
+    );
+  box-shadow: 0 10px 26px -22px rgba(90, 55, 35, 0.28);
+}
+
+/* ============================================================
+   2) 卡片：3D 倾斜（无高光/径向光效；松手弹簧回正由 DramaCard.tsx 逐帧完成）
+   ============================================================ */
+.drama-card {
+  touch-action: pan-y;
+  /* 不要给 transform 加 CSS transition：会和 JS 的逐帧弹簧插值叠加，变成"慢半拍" */
+  transition: box-shadow 0.3s var(--ease-out);
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+    translateY(var(--lift, 0px)) scale(var(--scale, 1));
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.drama-card__poster {
+  overflow: hidden;
+  transform: translateZ(18px);
+  transition: box-shadow 0.3s var(--ease-out);
+}
+
+/* 旧版 content.css 的大面积径向光/线型流光已废弃，只保留下面这颗小光斑 */
+.drama-card__poster::before,
+.drama-card__poster::after {
+  display: none !important;
+}
+
+/* 通用柔光斑（参考 vanilla-tilt glare）：小、软、跟随指针，只在卡片内 */
+.tilt-glare {
+  position: absolute;
+  left: var(--mx, 50%);
+  top: var(--my, 50%);
+  z-index: 5;
+  width: var(--glare-size, 220px);
+  height: var(--glare-size, 220px);
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: var(--glare-opacity, 0);
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.42),
+    rgba(255, 196, 148, 0.14) 38%,
+    transparent 66%
+  );
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  transition: opacity 0.22s var(--ease-out);
+}
+
+.drama-card__poster img {
+  transform: translateZ(10px) scale(1.035);
+  transition: transform 0.32s var(--ease-out);
+}
+
+.drama-card:hover .drama-card__poster img {
+  transform: translateZ(16px) scale(1.06);
+}
+
+/* ============================================================
+   4) 推荐页：左侧片单 + 居中的视频舞台
+   ============================================================ */
+.feedv {
+  display: flex;
+  gap: 14px;
+  padding: 10px 18px 0;
+  background:
+    radial-gradient(80% 60% at 18% 0%, rgba(255, 77, 46, 0.08), transparent 60%),
+    radial-gradient(70% 70% at 100% 100%, rgba(122, 92, 255, 0.08), transparent 65%),
+    #050505;
+}
+
+.feedv--state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* 左侧片单：大卡片、只留封面。当前卡在列表垂直居中，和视频中线齐平 */
+.feedv__side {
+  flex: 0 0 clamp(190px, 16vw, 232px);
+  width: clamp(190px, 16vw, 232px);
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 6px;
+  min-height: 0;
+}
+
+.feedv__side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 10px 10px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.feedv__side-head strong {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.feedv__side-head span {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.feedv__side-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 92px 8px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 14%, #000 86%, transparent);
+}
+
+.feedv__side-list::-webkit-scrollbar {
+  display: none;
+}
+
+.feedv__side-card {
+  flex: none;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0.38;
+  transform: scale(0.9);
+  filter: saturate(0.75) brightness(0.72);
+  box-shadow: 0 18px 36px -28px rgba(0, 0, 0, 0.95);
+  transition:
+    opacity 0.38s var(--ease-out),
+    transform 0.42s var(--ease-spring),
+    filter 0.38s var(--ease-out),
+    border-color 0.38s var(--ease-out),
+    box-shadow 0.38s var(--ease-out);
+}
+
+.feedv__side-card:hover {
+  opacity: 0.82;
+  filter: saturate(1) brightness(0.95);
+  transform: scale(0.95);
+}
+
+.feedv__side-card[data-active='true'] {
+  opacity: 1;
+  transform: scale(1.02);
+  filter: none;
+  border-color: rgba(255, 122, 82, 0.65);
+  box-shadow:
+    0 28px 60px -30px rgba(0, 0, 0, 0.98),
+    0 0 0 1px rgba(255, 122, 82, 0.2),
+    0 0 34px -14px rgba(255, 77, 46, 0.55);
+}
+
+.feedv__side-tilt {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+    translateY(var(--lift, 0px)) scale(var(--scale, 1));
+  transform-style: preserve-3d;
+  will-change: transform;
+  --glare-size: 160px;
+}
+
+.feedv__side-cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background-color: rgba(255, 255, 255, 0.04);
+  background-size: cover;
+  background-position: center;
+}
+
+/* 视频舞台 */
+.feedv__stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.feedv__slide {
+  height: 100%;
+  padding: 64px 16px 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.feedv__frame {
+  position: relative;
+  flex: none;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #000;
+  box-shadow:
+    0 38px 80px -42px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.feedv__frame .xg-host {
+  border-radius: inherit;
+}
+
+.feedv__poster {
+  inset: 0;
+  filter: blur(26px) brightness(0.42) saturate(1.1);
+  transform: scale(1.04);
+}
+
+/* 不再压一层从顶到底的暗罩：只在底部托一下信息区的字 */
+.feedv__shade {
+  background: linear-gradient(180deg, transparent 56%, rgba(0, 0, 0, 0.5));
+  opacity: 0.9;
+}
+
+html.is-player-fullscreen .feedv__shade {
+  background: none;
+  opacity: 0;
+}
+
+.feedv__info {
+  left: 18px;
+  right: 86px;
+  bottom: 54px;
+  max-width: min(520px, 64%);
+}
+
+.feedv__title {
+  font-size: clamp(18px, 1.6vw, 23px);
+}
+
+.feedv__intro {
+  font-size: 12.5px;
+  -webkit-line-clamp: 2;
+}
+
+.feedv__rail {
+  right: 12px;
+  bottom: 58px;
+  gap: 9px;
+}
+
+.feedv__rail-icon {
+  width: 38px;
+  height: 38px;
+  font-size: 17px;
+}
+
+.feedv__rail-btn {
+  font-size: 10px;
+  gap: 2px;
+}
+
+.feedv__rail-num {
+  font-size: 10px;
+}
+
+/* 由我们自己的闲置状态决定控制条显隐：xgplayer 在播放中会自己把控制条藏起来，
+   导致"鼠标动了、顶栏和右侧栏都出来了，进度条却不出来"。 */
+.play:not([data-chrome-hidden='true']) .xgplayer-controls,
+.feedv:not([data-chrome-hidden='true']) .xgplayer-controls {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* 控制条贴着画面底部，不再为 dock 抬高 92px */
+.feedv .xgplayer-controls {
+  bottom: 0 !important;
+  height: 46px;
+  padding-bottom: 2px;
+  background-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.42) 40%, rgba(0, 0, 0, 0.82));
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* 推荐页 tab：放在舞台顶部 */
+.feedv__tabs {
+  top: 8px;
+  z-index: 8;
+}
+
+.feedv__quality-busy {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(10, 8, 7, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+  backdrop-filter: blur(14px);
+}
+
+.feedv__quality-busy .feedv__spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+/* 全屏：收起片单，视频铺满 */
+html.is-player-fullscreen .feedv {
+  padding: 0;
+  gap: 0;
+}
+
+html.is-player-fullscreen .feedv__side {
+  display: none;
+}
+
+html.is-player-fullscreen .feedv__stage {
+  height: 100%;
+}
+
+html.is-player-fullscreen .feedv__slide {
+  padding: 0;
+}
+
+html.is-player-fullscreen .feedv__frame {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.is-player-fullscreen .feedv__tabs {
+  display: none;
+}
+
+html.is-player-fullscreen .feedv .xgplayer-controls {
+  bottom: 0 !important;
+  height: 58px;
+  padding-bottom: 8px;
+}
+
+/* 窄窗口：片单会挤掉画面，直接收起；视频回到接近全宽 */
+@media (max-width: 1120px) {
+  .feedv__side {
+    display: none;
+  }
+
+  .feedv {
+    padding: 0 10px;
+  }
+
+  .feedv__slide {
+    padding: 60px 8px 88px;
+  }
+}
+
+/* 矮窗口（半屏/小窗尺寸）：上下留白收紧，信息区只保留标题/按钮，避免压到控制条 */
+@media (max-height: 640px) {
+  .feedv__slide {
+    padding: 50px 8px 64px;
+  }
+
+  .feedv__info {
+    left: 12px;
+    right: 74px;
+    bottom: 40px;
+  }
+
+  .feedv__intro,
+  .feedv__tags,
+  .feedv__info-actions .btn:first-child {
+    display: none;
+  }
+
+  .feedv__rail {
+    right: 8px;
+    bottom: 42px;
+    gap: 6px;
+  }
+
+  .feedv__rail-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+  }
+
+  .feedv__tabs {
+    top: 2px;
+    transform: scale(0.9);
+  }
+}
+
+/* ============================================================
+   4.1) 评论区：不要压在顶栏下面，也不要被底部 dock 盖住
+   ============================================================ */
+.feedv .play__comments-mask {
+  top: var(--topbar-h);
+  z-index: 45;
+}
+
+.feedv .play__comments {
+  height: 100%;
+  padding-bottom: 24px;
+  overscroll-behavior: contain;
+}
+
+html.is-player-fullscreen .feedv .play__comments-mask {
+  top: 0;
+  z-index: 600;
+}
+
+/* 播放页没有顶栏参与布局，评论抽屉可以盖住播放页自己的顶栏 */
+.play .play__comments-mask {
+  z-index: 70;
+}
+
+/* ============================================================
+   4.2) 进度条圆球：去掉 xgplayer 旧的 20px 双层圆 + 3px margin，
+        改成单层 14px 实心圆，top:50% 精确压在进度条中线上
+   ============================================================ */
+.xgplayer .xgplayer-progress-btn,
+.xgplayer.xgplayer-pc .xgplayer-progress-btn {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ember);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--ember) 22%, transparent),
+    0 0 12px color-mix(in srgb, var(--ember) 65%, transparent);
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  box-sizing: border-box;
+}
+
+/* xgplayer 只在进度条 hover/active 时把圆球 scale(1)，这里保持同样的显隐，
+   但圆球尺寸/中心线由我们控制，避免旧版 20px 双层圆 + margin 偏移。 */
+.xgplayer.xgplayer-pc .xgplayer-progress.active .xgplayer-progress-btn {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.xgplayer .xgplayer-progress-btn.active {
+  border: 2px solid var(--ember);
+}
+
+.xgplayer .xgplayer-progress-btn::before {
+  display: none;
+}
+
+/* ============================================================
+   5) 播放器设置面板（胶囊按钮 → 右侧面板的流体变形）
+   ============================================================ */
+.pset-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 440;
+  background: rgba(5, 4, 4, 0.22);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.pset {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  bottom: 92px;
+  z-index: 450;
+  width: min(356px, 92vw);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.06)),
+    rgba(14, 12, 10, 0.9);
+  box-shadow:
+    0 36px 80px -36px rgba(0, 0, 0, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(26px) saturate(1.7);
+  -webkit-backdrop-filter: blur(26px) saturate(1.7);
+  color: #f3ece4;
+  overflow: hidden;
+}
+
+.pset__head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 15px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pset__head strong {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.pset__head span {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.pset__close {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.pset__close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.pset__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 18px;
+}
+
+.pset__section {
+  padding: 14px 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pset__section:last-of-type {
+  border-bottom: 0;
+}
+
+.pset__section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff8a63;
+  letter-spacing: 0.04em;
+}
+
+.pset__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pset__chip {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.74);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.18s var(--ease-out),
+    color 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out);
+}
+
+.pset__chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.pset__chip[data-active='true'] {
+  background: linear-gradient(160deg, #ff8a63, var(--ember));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 18px -12px var(--ember);
+}
+
+.pset__chip--sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.pset__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.pset__row > span {
+  flex: none;
+  min-width: 48px;
+}
+
+.pset__row--stack {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pset__row input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--ember);
+}
+
+.pset__row b {
+  flex: none;
+  min-width: 38px;
+  text-align: right;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+  font-variant-numeric: tabular-nums;
+}
+
+.pset__switch {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: background 0.2s var(--ease-out);
+}
+
+.pset__switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.22s var(--ease-spring);
+}
+
+.pset__switch.is-on {
+  background: var(--ember);
+}
+
+.pset__switch.is-on span {
+  transform: translateX(15px);
+}
+
+.pset__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.pset__check input {
+  accent-color: var(--ember);
+}
+
+.pset__colors {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pset__color {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.pset__color[data-active='true'] {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 77, 46, 0.55);
+}
+
+.pset__hint {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.pset__foot {
+  margin: 12px 0 0;
+  font-size: 10px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.xg-extras__btn--settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 全屏里菜单/面板的层级要压过播放器自己的控制条 */
+html.is-player-fullscreen .xg-quality,
+html.is-player-fullscreen .pset {
+  z-index: 600;
+}
+
+html.is-player-fullscreen .xg-quality-mask,
+html.is-player-fullscreen .pset-mask {
+  z-index: 590;
+}
+
+/* 设置页的“复制链接”：看起来像链接，但用按钮实现（不会被 Electron 当成导航） */
+.settings-link--button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ember);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.settings-link--button:hover {
+  color: #ff8a63;
+}
+
+/* ============================================================
+   6) 自动更新卡片
+   ============================================================ */
+.update-pop {
+  position: fixed;
+  top: calc(var(--topbar-h) + 14px);
+  right: 22px;
+  z-index: 520;
+  width: min(380px, calc(100vw - 32px));
+  padding: 16px 18px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(155deg, rgba(255, 138, 99, 0.16), rgba(255, 255, 255, 0.03) 46%, rgba(255, 255, 255, 0.06)),
+    rgba(16, 13, 11, 0.9);
+  box-shadow:
+    0 36px 90px -36px rgba(0, 0, 0, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(26px) saturate(1.7);
+  -webkit-backdrop-filter: blur(26px) saturate(1.7);
+  color: #f3ece4;
+  animation: update-in 0.42s cubic-bezier(0.22, 1.25, 0.36, 1) both;
+}
+
+:root[data-theme='light'] .update-pop {
+  background:
+    linear-gradient(155deg, rgba(255, 138, 99, 0.22), rgba(255, 255, 255, 0.62) 46%, rgba(255, 250, 244, 0.86)),
+    rgba(255, 250, 244, 0.92);
+  border-color: rgba(60, 42, 32, 0.16);
+  color: #241a14;
+}
+
+@keyframes update-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.update-pop__glow {
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 77, 46, 0.35), transparent 70%);
+  pointer-events: none;
+}
+
+.update-pop__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-pop__icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #ff8a63, var(--ember));
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px -12px var(--ember);
+}
+
+.update-pop__headline {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.update-pop__headline strong {
+  font-size: 14px;
+}
+
+.update-pop__headline span {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+:root[data-theme='light'] .update-pop__headline span {
+  color: rgba(36, 26, 20, 0.5);
+}
+
+.update-pop__close {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.update-pop__close:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+:root[data-theme='light'] .update-pop__close {
+  border-color: rgba(60, 42, 32, 0.2);
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(36, 26, 20, 0.78);
+}
+
+:root[data-theme='light'] .update-pop__close:hover {
+  border-color: rgba(60, 42, 32, 0.38);
+  background: #fff;
+  color: #241a14;
+}
+
+.update-pop__name {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #ff9c7e;
+}
+
+.update-pop__text {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:root[data-theme='light'] .update-pop__text {
+  color: rgba(36, 26, 20, 0.72);
+}
+
+.update-pop__progress {
+  height: 5px;
+  margin-top: 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.update-pop__progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff8a63, var(--ember));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ember) 60%, transparent);
+  transition: width 0.28s var(--ease-out);
+}
+
+.update-pop__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.update-pop__actions .btn {
+  height: 31px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.update-pop__hint {
+  margin: 9px 0 0;
+  font-size: 10px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+:root[data-theme='light'] .update-pop__hint {
+  color: rgba(36, 26, 20, 0.42);
+}

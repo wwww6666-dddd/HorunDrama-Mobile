@@ -1,0 +1,443 @@
+/**
+ * 玻璃组件：panel / chip / button / dock。
+ * 每个可点元素都必须有 hover / active / focus-visible 三态（旧版缺的是 focus）。
+ */
+
+/* ---------- 面板 ---------- */
+.glass {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-glass);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text-1);
+}
+
+.glass--raised {
+  background: var(--glass-bg-strong);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-lift);
+}
+
+.glass--flat {
+  border-radius: var(--r-card);
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 9px 16px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--fs-body);
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.btn:hover {
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-highlight), var(--glow-ember);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn:focus-visible,
+.chip:focus-visible,
+.dock__item:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+.btn--primary {
+  border-color: transparent;
+  background: linear-gradient(180deg, #ff6a45, var(--ember));
+  color: #1a0d09;
+  font-weight: 600;
+  box-shadow: var(--glass-highlight), var(--glow-ember);
+}
+
+.btn--primary:hover {
+  box-shadow: var(--glass-highlight), var(--glow-ember-strong);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.btn--ghost:hover {
+  color: var(--text-1);
+  background: rgba(242, 234, 224, 0.08);
+  box-shadow: none;
+  border-color: var(--glass-border);
+}
+
+.btn--icon {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--r-chip);
+}
+
+/* ---------- 胶囊标签 ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border);
+  background: rgba(242, 234, 224, 0.05);
+  color: var(--text-2);
+  font-size: var(--fs-caption);
+  cursor: pointer;
+  transition:
+    color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+}
+
+.chip:hover {
+  color: var(--text-1);
+  border-color: var(--glass-border-strong);
+}
+
+.chip--on {
+  color: var(--text-inverse);
+  background: linear-gradient(180deg, #ff6a45, var(--ember));
+  border-color: transparent;
+  box-shadow: var(--glow-ember);
+}
+
+/* ---------- 底部玻璃胶囊导航 ---------- */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: var(--z-dock);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: var(--r-chip);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-lift);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.dock__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-base) var(--ease-out);
+}
+
+.dock__item:hover {
+  color: var(--text-1);
+  transform: translateY(-2px);
+}
+
+.dock__item[data-active='true'] {
+  color: var(--text-inverse);
+  background: linear-gradient(160deg, #ff7a52, var(--ember));
+  box-shadow: var(--glass-highlight), var(--glow-ember);
+}
+
+.dock__item:active {
+  transform: scale(0.96);
+}
+
+/* 华为风透明玻璃：更厚的磨砂 + 边缘高光 + 顶部反光 */
+.dock {
+  bottom: 20px;
+  padding: 7px;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.16)),
+    var(--glass-bg-strong);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 24px 60px -24px rgba(0, 0, 0, 0.55),
+    0 2px 10px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(30px) saturate(1.8);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  overflow: hidden;
+}
+
+.dock::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.5),
+    transparent 26%,
+    transparent 68%,
+    rgba(255, 255, 255, 0.16)
+  );
+  opacity: 0.5;
+  mix-blend-mode: screen;
+}
+
+:root[data-theme='light'] .dock {
+  border-color: rgba(255, 255, 255, 0.72);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28) 45%, rgba(255, 250, 244, 0.5)),
+    var(--glass-bg-strong);
+  box-shadow:
+    0 24px 56px -26px rgba(90, 55, 35, 0.38),
+    0 2px 10px rgba(90, 55, 35, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.dock__item {
+  position: relative;
+  z-index: 1;
+  border-radius: 18px;
+  padding: 9px 13px;
+}
+
+.dock__item[data-active='true'] {
+  background: linear-gradient(160deg, #ff8a63, #ff4d2e);
+  box-shadow:
+    0 12px 26px -12px rgba(255, 77, 46, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.topbar__glyph {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.topbar__toast {
+  position: absolute;
+  right: 24px;
+  top: calc(var(--topbar-h) - 10px);
+  z-index: calc(var(--z-topbar) + 2);
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: var(--glass-highlight);
+  backdrop-filter: var(--glass-blur);
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-topbar);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: var(--topbar-h);
+  padding: 0 var(--page-pad);
+  background: linear-gradient(180deg, rgba(10, 9, 8, 0.72), rgba(10, 9, 8, 0));
+}
+
+:root[data-theme='light'] .topbar {
+  background: linear-gradient(180deg, rgba(244, 236, 226, 0.86), rgba(244, 236, 226, 0));
+}
+
+.search {
+  flex: 1;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 8px 14px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+
+.search:focus-within {
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glow-ember);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--fs-body);
+}
+
+.search input::placeholder {
+  color: var(--text-3);
+}
+
+.search input:focus-visible {
+  outline: none;
+}
+
+/* ---------- 页面骨架 ---------- */
+/* 注意 width:100%：.view-stage 是 flex 列容器，子元素上的 margin:auto 会把
+   元素挤成"收缩到内容宽度"，于是剧场/榜单等页面只剩 3 列、右边一大片空白。
+   显式给满宽度 + max-width 居中，卡片网格才能铺开。 */
+.page {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--s-4) var(--page-pad) calc(var(--dock-h) + 48px);
+}
+
+/* 表单/设置这种一条一行的地方不适合铺到 1560，给一个窄版 */
+.page--narrow {
+  max-width: 1120px;
+}
+
+.page__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+.page__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+  letter-spacing: 0.01em;
+}
+
+.page__sub {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-body);
+}
+
+.card {
+  padding: var(--s-4);
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-highlight);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.grid {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.placeholder {
+  display: block;
+  min-height: 32vh;
+  padding: clamp(32px, 8vh, 88px) var(--s-5);
+  border-radius: var(--r-glass);
+  border: 1px dashed var(--glass-border);
+  color: var(--text-3);
+  font-size: var(--fs-body);
+  text-align: center;
+  line-height: 1.9;
+}
+
+.placeholder code {
+  color: var(--text-2);
+}
+
+/* 首屏背景：深色 + 三团极光（不依赖剧照，避免未加载时发灰） */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 18% 8%, var(--bg-aurora-1), transparent 70%),
+    radial-gradient(55% 45% at 85% 12%, var(--bg-aurora-2), transparent 72%),
+    radial-gradient(70% 60% at 50% 108%, var(--bg-aurora-3), transparent 70%),
+    linear-gradient(180deg, var(--bg-base), var(--bg-deep));
+}
+
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+}
+
+/*
+ * 原生窗口拖动（VS Code / Discord 的做法）：
+ * 顶栏空白处交给系统做 HTCAPTION 拖动，绝不用 setPosition 手动挪窗口——
+ * 手动挪会撞上 Electron 41.3+ 无边框窗口的外扩 resize 边框（#51679），
+ * 表现就是"拖着拖着窗口变大"。
+ */
+.topbar {
+  -webkit-app-region: drag;
+}
+
+.topbar button,
+.topbar input,
+.topbar a,
+.topbar .search,
+.topbar .win-controls,
+.topbar .brand img {
+  -webkit-app-region: no-drag;
+}
+/* 顶部：华为风透明玻璃遮罩 */
+.topbar {
+  background: linear-gradient(180deg, rgba(10, 9, 8, 0.52), rgba(10, 9, 8, 0.14) 72%, transparent);
+  backdrop-filter: blur(26px) saturate(1.7);
+  -webkit-backdrop-filter: blur(26px) saturate(1.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme='light'] .topbar {
+  background: linear-gradient(180deg, rgba(248, 242, 234, 0.7), rgba(248, 242, 234, 0.22) 72%, transparent);
+  border-bottom-color: rgba(90, 55, 35, 0.06);
+}

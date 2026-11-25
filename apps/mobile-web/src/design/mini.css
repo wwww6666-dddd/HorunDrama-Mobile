@@ -1,0 +1,130 @@
+/* 迷你播放器：窗口就是画面，控制条只在悬停时出现。 */
+
+html.mini-mode,
+html.mini-mode body,
+html.mini-mode #root {
+  background: #000;
+  overflow: hidden;
+}
+
+.mini {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 顶部拖动条：交给系统原生拖动（和主窗口顶栏同一套做法） */
+.mini__drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 4;
+  -webkit-app-region: drag;
+  cursor: grab;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent);
+  opacity: 0.001; /* 保留可见性（0 可能不参与命中测试），但几乎看不见 */
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.mini:hover .mini__drag {
+  opacity: 1;
+}
+
+.mini__video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+  cursor: pointer;
+}
+
+.mini__status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: rgba(243, 236, 228, 0.72);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* 控制条：浮在画面底部，悬停才出现 */
+.mini__hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 8px 10px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.82), transparent);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+
+.mini__hud[data-visible='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mini__hud button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(243, 236, 228, 0.82);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.mini__hud button:hover {
+  color: #fff;
+  background: rgba(243, 236, 228, 0.16);
+}
+
+.mini__hud .mini__close:hover {
+  background: #d63b2c;
+  color: #fff;
+}
+
+.mini__label {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 11px;
+  color: rgba(243, 236, 228, 0.66);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部细进度线 */
+.mini__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mini__progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff7a52, var(--ember));
+}

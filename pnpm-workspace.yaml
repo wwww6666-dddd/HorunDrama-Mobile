@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+
+# 只允许 esbuild 跑构建脚本（vite 依赖它校验二进制）
+allowBuilds:
+  esbuild: true
+
+# 其余依赖的安装脚本只告警，不阻断安装
+strictDepBuilds: false

@@ -1,0 +1,240 @@
+/* 下载管理页：列表 + 进度 + 操作。视觉沿用玻璃卡片，不引入新风格。 */
+
+.btn--sm {
+  padding: 6px 12px;
+  font-size: var(--fs-caption);
+  border-radius: var(--r-sm);
+}
+
+.dl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+}
+
+.dl-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-chip);
+  background: var(--hover-wash);
+  border: 1px solid var(--glass-border);
+}
+
+.dl-tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-caption);
+  padding: 6px 14px;
+  border-radius: var(--r-chip);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.dl-tab:hover {
+  color: var(--text-1);
+  background: var(--hover-wash);
+}
+
+.dl-tab[data-active='true'] {
+  color: #fff;
+  background: linear-gradient(180deg, #ff6a44, var(--ember));
+  box-shadow: var(--glow-ember);
+}
+
+.dl-summary {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+.dl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.dl-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-3);
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-highlight);
+}
+
+.dl-row[data-status='working'] {
+  border-color: rgba(255, 106, 68, 0.35);
+}
+
+.dl-row__cover {
+  width: 64px;
+  height: 86px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--hover-wash);
+}
+
+.dl-row__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dl-row__main {
+  min-width: 0;
+}
+
+.dl-row__title {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-1);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dl-row__sub {
+  margin: 2px 0 8px;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.dl-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--hover-wash);
+  overflow: hidden;
+}
+
+.dl-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffa25c, var(--ember));
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.dl-bar[data-state='ready'] > span {
+  background: linear-gradient(90deg, #63d29a, #2fbe76);
+}
+
+.dl-bar[data-state='failed'] > span,
+.dl-bar[data-state='canceled'] > span {
+  background: linear-gradient(90deg, #ff7a6a, #d63b2c);
+}
+
+.dl-row__note {
+  margin: 6px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dl-badge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border-strong);
+  color: var(--text-2);
+  font-size: 11px;
+  vertical-align: 1px;
+}
+
+.dl-badge[data-status='working'],
+.dl-badge[data-status='queued'] {
+  color: #ffb08f;
+  border-color: rgba(255, 106, 68, 0.45);
+  background: rgba(255, 77, 46, 0.12);
+}
+
+.dl-badge[data-status='ready'] {
+  color: #8ee8b8;
+  border-color: rgba(47, 190, 118, 0.4);
+  background: rgba(47, 190, 118, 0.1);
+}
+
+.dl-badge[data-status='failed'] {
+  color: #ff9c90;
+  border-color: rgba(214, 59, 44, 0.45);
+  background: rgba(214, 59, 44, 0.12);
+}
+
+.dl-row__actions {
+  display: flex;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dl-danger:hover {
+  color: #ff8a7a;
+  border-color: rgba(214, 59, 44, 0.5);
+}
+
+.dl-empty-filter {
+  color: var(--text-3);
+  font-size: var(--fs-body);
+  padding: var(--s-5);
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .dl-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .dl-row__cover {
+    width: 48px;
+    height: 64px;
+  }
+
+  .dl-row__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+.dl-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dl-concurrency {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+.dl-concurrency select {
+  appearance: none;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--hover-wash);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+
+.dl-concurrency option {
+  color: #111;
+  background: #fff;
+}

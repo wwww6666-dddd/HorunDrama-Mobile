@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HorunDrama</string>
+    <string name="setup_title">连接电脑</string>
+    <string name="setup_sub">手机和电脑连同一个 Wi-Fi，输入电脑端程序启动后显示的地址</string>
+    <string name="setup_hint">例如 192.168.1.23:5881</string>
+    <string name="setup_connect">连接</string>
+    <string name="setup_force">仍然使用</string>
+    <string name="setup_checking">正在连接…</string>
+    <string name="setup_empty">先输入地址</string>
+</resources>

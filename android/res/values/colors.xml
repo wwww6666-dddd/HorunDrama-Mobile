@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#0A0908</color>
+    <color name="bg_deep">#060505</color>
+    <color name="ember">#FF4D2E</color>
+    <color name="ember_light">#FF8A63</color>
+    <color name="text1">#F3ECE4</color>
+    <color name="text2">#B9B0A6</color>
+    <color name="text3">#7A7168</color>
+    <color name="glass">#1C1917</color>
+    <color name="glass_border">#33FFFFFF</color>
+</resources>

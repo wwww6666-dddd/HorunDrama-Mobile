@@ -1,0 +1,948 @@
+/* 播放页：全屏、深底、控制条只在鼠标活动时出现。 */
+
+.play {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+}
+
+.play__ep {
+  font-size: var(--fs-caption);
+  color: rgba(243, 236, 228, 0.62);
+  white-space: nowrap;
+}
+
+.play__controls .btn--ghost {
+  color: rgba(243, 236, 228, 0.78);
+}
+
+.play__controls .btn--ghost:hover {
+  color: #fff;
+  background: rgba(243, 236, 228, 0.12);
+}
+
+/* ---------- 准备中 ---------- */
+/* z-index 5：压在播放器（.xg-host 是 1）之上、顶栏(6)/右侧操作栏(7)之下。
+   不抬到播放器上面的话，"选集后新一集还在转码"这层卡会被旧画面整个盖住，
+   用户看到的就只是"点了没反应，等半天突然跳集"。 */
+.play__waiting {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(255, 77, 46, 0.1), transparent 70%);
+}
+
+/* 下面还挂着上一集的画面：压暗它，才算真的"切过去了"。
+   延迟 0.12s 淡入 —— 命中缓存时新集几十毫秒就绪，卡片不该闪一下。 */
+.play__waiting[data-over='true'] {
+  background:
+    radial-gradient(60% 60% at 50% 45%, rgba(255, 77, 46, 0.12), transparent 70%),
+    rgba(6, 5, 5, 0.88);
+  animation: play-waiting-in 0.24s var(--ease-out) 0.12s both;
+}
+
+/* 准备失败：不要挡住下面的控制条（用户还要点「选集」换一集重试） */
+.play__waiting[data-failed='true'] {
+  pointer-events: none;
+}
+
+@keyframes play-waiting-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.play__waiting-card {
+  width: min(420px, 86vw);
+  padding: 24px 26px;
+  border-radius: var(--r-glass);
+  text-align: center;
+}
+
+.play__waiting-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 20px;
+}
+
+.play__waiting-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-2);
+  min-height: 20px;
+}
+
+/* 等待说明：解释"为什么第一次要等"—— 之后就是完整时长、能拖的本地文件 */
+.play__waiting-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.play__progress {
+  margin-top: var(--s-4);
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(242, 234, 224, 0.12);
+  overflow: hidden;
+}
+
+.play__progress span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff7a52, var(--ember));
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+/* 播放页顶部原生拖动条（整条 10px 透明；无边框窗口靠它移动）
+   放在最上层但只占最上面一条，不会挡住顶栏按钮；同时顶栏本身也可拖（按钮除外）。 */
+.play__dragbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  z-index: 9;
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+
+.play__top {
+  -webkit-app-region: drag;
+}
+
+.play__top button,
+.play__top a,
+.play__top input,
+.play__top select {
+  -webkit-app-region: no-drag;
+}
+
+.play__sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.play__sheet {
+  width: min(920px, 94vw);
+  max-height: 62vh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-4) var(--s-4) var(--s-5);
+  border-radius: var(--r-glass) var(--r-glass) 0 0;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow-lift);
+}
+
+.play__sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.play__sheet-head span {
+  color: var(--text-3);
+  font-size: var(--fs-caption);
+}
+
+.play__sheet-head button {
+  margin-left: auto;
+}
+
+.play__sheet-grid {
+  margin-top: var(--s-3);
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 6px;
+}
+
+.play__sheet-ep {
+  height: 34px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--hover-wash);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-caption);
+  cursor: pointer;
+}
+
+.play__sheet-ep:hover {
+  color: var(--text-1);
+  border-color: var(--glass-border-strong);
+}
+
+.play__sheet-ep[data-active='true'] {
+  color: #fff;
+  background: linear-gradient(180deg, #ff6a44, var(--ember));
+  border-color: transparent;
+  box-shadow: var(--glow-ember);
+}
+
+.play__sheet-ep:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- 沉浸式播放器：顶栏 / 右侧操作栏 / 信息 / 控制条 ---------- */
+.play__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 22px 40px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.68), transparent);
+  color: #f3ece4;
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+
+.play__top[data-hidden='true'] {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.play__top-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.play__top-title strong {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 48vw;
+}
+
+.play__rail {
+  position: absolute;
+  right: 22px;
+  bottom: 145px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.play__rail[data-hidden='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.play__rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #f3ece4;
+  font-size: 11px;
+  cursor: pointer;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+}
+
+.play__rail-btn em {
+  font-style: normal;
+}
+
+.play__rail-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 21px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.play__rail-icon[data-on='true'] {
+  color: #ff5b3d;
+  border-color: rgba(255, 91, 61, 0.6);
+}
+
+.play__meta {
+  position: absolute;
+  left: 24px;
+  bottom: 116px;
+  z-index: 7;
+  max-width: min(560px, 50vw);
+  color: #f3ece4;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.play__meta[data-hidden='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.play__meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.play__badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #ff4d2e;
+  color: #fff;
+  font-size: 11px;
+}
+
+.play__badge--ghost {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.play__meta-title {
+  margin: 0 0 6px;
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 2vw, 26px);
+  line-height: 1.3;
+}
+
+.play__meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.play__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.play__meta-intro {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.82);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.play__meta-intro--open {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.play__bar .btn,
+.play__bar .btn--ghost {
+  color: #f3ece4;
+}
+
+.play__toast {
+  position: absolute;
+  left: 50%;
+  bottom: 112px;
+  translate: -50% 0;
+  z-index: 9;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(16, 13, 11, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 12px;
+  backdrop-filter: blur(14px);
+  white-space: nowrap;
+}
+
+/* xgplayer host */
+.xg-host {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+}
+
+.xg-host .xgplayer {
+  width: 100%;
+  height: 100%;
+}
+
+.xgplayer .xgplayer-controls {
+  height: 48px;
+  background-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.37), rgba(0, 0, 0, 0.75));
+  color: #fff;
+}
+
+.xgplayer .xgplayer-time {
+  color: #fff;
+  font-size: 13px;
+  min-width: 40px;
+}
+
+.xgplayer .time-duration {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.xgplayer .xgplayer-progress-outer {
+  height: 3px;
+  border-radius: 3px;
+}
+
+.xgplayer .xgplayer-progress.active .xgplayer-progress-outer {
+  height: 6px;
+}
+
+.xgplayer .xgplayer-progress-played {
+  background: linear-gradient(-90deg, #fa1f41, #e31106);
+}
+
+.xgplayer .xgplayer-progress-cache {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.xgplayer .xgplayer-progress-inner {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.xgplayer .xgplayer-progress-btn {
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 94, 94, 0.3);
+  border: 0.5px solid rgba(255, 94, 94, 0.06);
+  box-shadow: 0 0 1px rgba(255, 0, 0, 0.38);
+  border-radius: 30px;
+}
+
+.xgplayer .xgplayer-progress-btn::before {
+  content: '';
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 3px auto;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.xgplayer xg-icon {
+  color: rgba(255, 255, 255, 0.86);
+  fill: #fff;
+}
+
+.xgplayer .xgplayer-playbackrate {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+}
+
+.play__meta {
+  bottom: 128px;
+}
+
+.play__rail {
+  bottom: 156px;
+}
+
+@media (max-width: 980px) {
+  .play__meta {
+    max-width: 62vw;
+    bottom: 104px;
+  }
+
+  .play__bar {
+    gap: 5px;
+    padding: 10px 12px 14px;
+  }
+
+  .play__bar .play__volume {
+    width: 48px;
+  }
+}
+
+/* control bar overrides: keep the dark-player look for legacy pieces */
+.play__top .btn,
+.play__top .btn--ghost,
+.play__bar .btn,
+.play__bar .btn--ghost {
+  color: #f3ece4;
+}
+
+.play__top .btn--ghost {
+  background: transparent;
+}
+
+.play__bar .btn--ghost:not(.play__pill) {
+  min-width: 38px;
+}
+
+.play__meta {
+  bottom: 150px;
+}
+
+.play__rail {
+  bottom: 158px;
+}
+
+.play__rail-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.play__comments-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.play__comments {
+  width: min(420px, 92vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  background: #151210;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f3ece4;
+}
+
+.play__comments-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.play__comments-head strong {
+  font-size: 16px;
+}
+
+.play__comments-head span {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+}
+
+.play__comments-head .btn {
+  margin-left: auto;
+  color: #f3ece4;
+}
+
+.play__comments-body {
+  padding-top: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.play__comments-hint {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+}
+
+.play__meta-more {
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.play__meta-more:hover {
+  color: #fff;
+}
+
+.xg-extras-host {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  margin-right: 6px;
+}
+
+.xg-extras {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 12px;
+}
+
+.xg-extras__btn {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.xg-extras__btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.xg-extras__input {
+  width: 112px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+}
+
+.xg-extras__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.xg-extras__input:focus {
+  outline: none;
+  border-color: rgba(255, 77, 46, 0.65);
+}
+
+.play__meta {
+  bottom: 78px;
+}
+
+.play__rail {
+  bottom: 108px;
+}
+
+/* 2.0.0：删掉 xgplayer 自带的上下暗罩（::before/::after）。
+   原来顶上 22% 黑 55%、底下 42% 黑 70%，全屏看片时整块画面像蒙了一层灰；
+   现在只在控制条自己的背景里做很轻的渐变。 */
+
+.play__comments-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.play__comment {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.play__comment-avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.play__comment-avatar--empty {
+  display: block;
+}
+
+.play__comment-main {
+  min-width: 0;
+}
+
+.play__comment-name {
+  margin: 0 0 3px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.play__comment-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+}
+
+.play__comment-meta {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.play__comments-more {
+  align-self: center;
+  color: #f3ece4;
+}
+
+.play__comment-compose {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.play__comment-input {
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+}
+
+.play__comment-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.play__comment-input:focus {
+  outline: none;
+  border-color: rgba(255, 77, 46, 0.6);
+}
+
+.play__top {
+  background: linear-gradient(180deg, rgba(12, 10, 9, 0.55), rgba(12, 10, 9, 0.16) 68%, transparent);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 20px;
+}
+
+.play__comment-del {
+  margin-top: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 120, 96, 0.8);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.play__comment-del:hover {
+  color: #ff6a4d;
+}
+
+.play__comment-like {
+  margin-top: 3px;
+  margin-right: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.play__comment-like span {
+  margin-right: 3px;
+}
+
+.play__comment-like[data-on='true'] {
+  color: #ff6a4d;
+}
+
+.play__comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.play__reply-block {
+  padding-left: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.play__reply-toggle {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.play__reply-toggle:hover {
+  color: #ff8a6a;
+}
+
+.play__comment--reply {
+  opacity: 0.92;
+}
+
+.play__comment-avatar--small {
+  width: 26px;
+  height: 26px;
+}
+
+/* 音量：鼠标在播放器内控制条不消失；音量条悬停保持更大更好点 */
+.xgplayer:hover .xgplayer-controls {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.xgplayer .xgplayer-volume {
+  padding: 0 8px;
+}
+
+.xgplayer .xgplayer-volume:hover .xgplayer-slider,
+.xgplayer .xgplayer-slider:hover {
+  display: block !important;
+  opacity: 1;
+}
+
+.xgplayer .xgplayer-slider {
+  width: 34px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.xgplayer .xgplayer-bar,
+.xgplayer .xgplayer-drag {
+  left: 15px;
+}
+
+.xgplayer .xgplayer-slider:after {
+  width: 34px;
+}
+
+/* 音量滑条恢复紧凑，仅悬停显示，避免出现第二条常驻控制条 */
+.xgplayer .xgplayer-slider {
+  width: 28px;
+  opacity: 1;
+}
+
+.xgplayer .xgplayer-bar,
+.xgplayer .xgplayer-drag {
+  left: 12px;
+}
+
+.xgplayer .xgplayer-slider:after {
+  width: 28px;
+}
+
+.xgplayer .xgplayer-bar {
+  left: 12px !important;
+}
+
+.xgplayer .xgplayer-drag {
+  left: 0 !important;
+}
+
+
+/* ===== 全屏 + 闲置自动隐藏 =====
+   全屏时页面容器就是全屏元素，右侧操作栏/弹幕/简介都还在；
+   闲置 2.6s 后把控制条也一起淡出（之前只有顶部栏和右侧栏会隐藏）。 */
+.play[data-chrome-hidden='true'] .xgplayer-controls,
+.feedv[data-chrome-hidden='true'] .xgplayer-controls {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.32s var(--ease-out);
+}
+
+.play .xgplayer-controls,
+.feedv .xgplayer-controls {
+  transition: opacity 0.32s var(--ease-out);
+}
+
+/* 全屏时右侧操作栏和弹幕保持在最上层，避免被播放器盖住 */
+.play:fullscreen .play__rail,
+.play:fullscreen .play__meta,
+.feedv:fullscreen .feedv__rail,
+.feedv:fullscreen .feedv__info {
+  z-index: 30;
+}
+
+.play:fullscreen .play__rail[data-hidden='true'],
+.feedv[data-chrome-hidden='true'] .feedv__rail,
+.feedv[data-chrome-hidden='true'] .feedv__info {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.32s var(--ease-out);
+}
+
+/* ===== 切集过渡：上一集播完、下一集还没起来时盖一层，别让"重播"浮层误导 ===== */
+.play[data-switching='true'] .xgplayer-replay,
+.play[data-switching='true'] .xgplayer-enter,
+.play[data-switching='true'] .xgplayer-poster {
+  display: none !important;
+}
+
+.play__switching {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(6, 5, 5, 0.62);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.play__switching p {
+  margin: 0;
+  opacity: 0.86;
+}
+
+.play__spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  border-top-color: var(--ember);
+  animation: play-spin 0.9s linear infinite;
+}
+
+@keyframes play-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

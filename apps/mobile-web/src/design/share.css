@@ -1,0 +1,219 @@
+/* ==================== 分享续播弹窗 ==================== */
+.sharedlg {
+  position: fixed;
+  inset: 0;
+  z-index: 145;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.sharedlg__mask {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  cursor: default;
+  background: rgba(8, 6, 5, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.sharedlg__card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 24px 24px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--glass-border-strong);
+  background:
+    var(--glass-bg-strong),
+    color-mix(in srgb, var(--bg-base) 94%, transparent);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85);
+}
+
+.sharedlg__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sharedlg__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.sharedlg__sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.sharedlg__close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.sharedlg__close:hover {
+  background: var(--hover-wash);
+}
+
+.sharedlg__block {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sharedlg__label {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.sharedlg__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sharedlg__input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.sharedlg__input::placeholder {
+  color: var(--text-3);
+}
+
+.sharedlg__btn {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sharedlg__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sharedlg__btn--primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #1b120c;
+  font-weight: 600;
+}
+
+.sharedlg__btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.sharedlg__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+.sharedlg__hint code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 11.5px;
+}
+
+.sharedlg__note {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--accent);
+}
+
+/* 解析成功后的影片卡片：先让用户看清是哪部剧、第几集，再决定看不看 */
+.sharedlg__preview {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sharedlg__cover {
+  flex: none;
+  width: 76px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--hover-wash);
+}
+
+.sharedlg__preview-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sharedlg__preview-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sharedlg__preview-meta {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.sharedlg__preview-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sharedlg__foot {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+}

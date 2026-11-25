@@ -1,0 +1,1118 @@
+/* 内容区：卡片网格、榜单、筛选、状态块。 */
+
+/* ---------- 卡片 ---------- */
+.card-grid {
+  display: grid;
+  gap: var(--s-4) var(--s-3);
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+}
+
+.drama-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  border-radius: var(--r-card);
+  /* transform 由 design/v2.css + DramaCard.tsx 的弹簧统一控制 */
+}
+
+.drama-card:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 3px;
+}
+
+.drama-card__poster {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: rgba(242, 234, 224, 0.06);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), 0 10px 24px -18px rgba(0, 0, 0, 0.9);
+  transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.drama-card:hover .drama-card__poster {
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-highlight), var(--glow-ember);
+}
+
+.drama-card__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drama-card__empty {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(160deg, rgba(255, 77, 46, 0.18), rgba(122, 92, 255, 0.12));
+}
+
+.drama-card__rank {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-inverse);
+  background: linear-gradient(160deg, #ff7a52, var(--ember));
+  box-shadow: var(--glow-ember);
+}
+
+.drama-card__badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-1);
+  background: rgba(10, 9, 8, 0.62);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.drama-card__title {
+  margin: 6px 2px 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.drama-card__meta {
+  margin: 0 2px;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+/* ---------- 区块 ---------- */
+.section {
+  margin-bottom: var(--s-6);
+}
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.section__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.section__count {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+/* ---------- 状态块 ---------- */
+.state {
+  display: grid;
+  place-items: center;
+  gap: var(--s-3);
+  min-height: 180px;
+  padding: var(--s-5);
+  border-radius: var(--r-glass);
+  border: 1px dashed var(--glass-border);
+  color: var(--text-3);
+  text-align: center;
+}
+
+.state--error {
+  color: var(--text-2);
+  border-color: rgba(255, 77, 46, 0.32);
+}
+
+/* ---------- 榜单 tab ---------- */
+.board-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+/* ---------- 演员卡（与剧卡同网格节奏） ---------- */
+.person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  border-radius: var(--r-card);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.person-card:hover {
+  transform: translateY(-4px);
+}
+
+.person-card:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 3px;
+}
+
+.person-card__poster {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  background: rgba(242, 234, 224, 0.06);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), 0 10px 24px -18px rgba(0, 0, 0, 0.9);
+  transition: box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.person-card:hover .person-card__poster {
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-highlight), var(--glow-ember);
+}
+
+.person-card__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(1.05);
+}
+
+/* 演员的简介是一整串作品名，必须截断，否则卡片高度参差 */
+.person-card .drama-card__meta {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+/* ---------- 筛选 ---------- */
+.filter-panel {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-3);
+}
+
+.filter-row__name {
+  padding-top: 6px;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.filter-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 96px;
+  overflow: hidden;
+  transition: max-height var(--dur-base) var(--ease-out);
+}
+
+.filter-row[data-open='true'] .filter-row__chips {
+  max-height: none;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-5) 0 0;
+}
+
+/* 触底自动加载：哨兵本身不可见，只负责触发 */
+.infinite-sentinel {
+  height: 1px;
+}
+
+.load-more__hint {
+  margin: var(--s-3) 0 0;
+  text-align: center;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+/* ---------- 继续观看卡片 ---------- */
+.continue-card .drama-card__poster {
+  outline: 1px solid var(--glass-border);
+}
+
+.continue-card__badge {
+  position: absolute;
+  left: 8px;
+  bottom: 10px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-1);
+  background: rgba(10, 9, 8, 0.66);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.continue-card__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(10, 9, 8, 0.5);
+}
+
+.continue-card__bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff7a52, var(--ember));
+}
+
+/* ---------- 追剧列表 ---------- */
+.lib-list {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.lib-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 12px 16px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.lib-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lib-row__title {
+  margin: 0;
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lib-row__sub {
+  margin: 2px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+/* ---------- 设置页 ---------- */
+.settings-block {
+  margin-bottom: var(--s-5);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-glass);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-highlight);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.settings-block__title {
+  margin: 0 0 var(--s-3);
+  font-family: var(--font-serif);
+  font-size: 18px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-top: 1px solid rgba(242, 234, 224, 0.08);
+}
+
+.settings-row:first-of-type {
+  border-top: 0;
+}
+
+.settings-row__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-label {
+  margin: 0;
+  font-size: 14px;
+}
+
+.settings-hint {
+  margin: 3px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
+/* 关于页里的外链（GitHub 源码/Releases/Issue） */
+.settings-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.settings-link:hover {
+  border-bottom-style: solid;
+}
+
+/* 检查更新的结果提示 */
+.settings-hint[data-tone='ok'] {
+  color: var(--ok, #63d29b);
+}
+
+.settings-hint[data-tone='warn'] {
+  color: var(--accent);
+}
+
+.settings-path {
+  margin: 3px 0 0;
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+  font-family: ui-monospace, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-input {
+  width: 96px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--glass-border);
+  background: rgba(242, 234, 224, 0.06);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+}
+
+.settings-unit {
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.settings-note {
+  font-size: var(--fs-caption);
+  color: var(--text-2);
+}
+
+.settings-keys {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 2;
+}
+
+.settings-keys kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  margin-right: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: rgba(242, 234, 224, 0.06);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  text-align: center;
+}
+
+.settings-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* 弹幕预览：在设置页里就能看到"透明 vs 半透明"和字号的实际效果 */
+.danmaku-preview {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--r-card);
+  background:
+    linear-gradient(120deg, rgba(255, 77, 46, 0.28), rgba(122, 92, 255, 0.24)),
+    var(--bg-deep);
+  overflow: hidden;
+}
+
+.danmaku-preview__text {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 500;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 0 4px rgba(0, 0, 0, 0.75);
+}
+
+.danmaku-preview__text[data-bg='soft'] {
+  background: rgba(8, 7, 6, 0.34);
+}
+
+@media (max-width: 720px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  }
+}
+
+/* ---------- 账号卡片 ---------- */
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.account-card__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--glass-border);
+}
+/* ---------- 手机号登录表单 ---------- */
+.sms-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.sms-form__phone {
+  width: 150px;
+  text-align: left;
+}
+
+.sms-form__code {
+  width: 110px;
+  text-align: left;
+}
+/* ---------- 登录弹窗 ---------- */
+.dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 120);
+  display: grid;
+  place-items: center;
+  background: rgba(6, 5, 4, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.dialog {
+  width: min(420px, calc(100vw - 48px));
+  padding: var(--s-5);
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-3);
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 19px;
+}
+
+.dialog__hint {
+  margin: var(--s-2) 0 var(--s-4);
+  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--s-3);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.dialog__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+}
+
+.dialog__field--grow {
+  flex: 1;
+}
+
+.dialog__submit {
+  width: 100%;
+  margin-top: var(--s-2);
+}
+
+.dialog__note {
+  margin: var(--s-3) 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+/* ---------- 顶栏账号 chip ---------- */
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 168px;
+  height: 34px;
+  padding: 0 12px 0 4px;
+  border-radius: var(--r-chip);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.account-chip__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.account-chip__avatar--empty {
+  background: var(--glass-border);
+}
+
+.account-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+/* ---------- 登录弹窗：Tab 与二维码 ---------- */
+.dialog__tabs {
+  display: flex;
+  gap: var(--s-4);
+  margin: var(--s-3) 0 var(--s-4);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.dialog__tab {
+  padding: 0 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.dialog__tab--on {
+  color: var(--ink-1);
+  border-bottom-color: var(--ember);
+}
+
+.dialog__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) 0 var(--s-4);
+}
+
+.dialog__qr-img {
+  width: 188px;
+  height: 188px;
+  border-radius: var(--r-md);
+  background: #fff;
+  padding: 8px;
+}
+
+.dialog__qr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-5) 0;
+}
+.dialog__alt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--glass-border);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.dialog__web-login {
+  width: 100%;
+  margin-top: var(--s-1);
+}
+
+.dialog__divider {
+  margin: var(--s-3) 0 var(--s-2);
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* ��Ƭ��ȥӲ�߿���͵�ɫ + 3D ��б */
+.drama-card:hover {
+  --lift: -4px;
+}
+
+.drama-card__poster {
+  border: 0;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025));
+  box-shadow:
+    0 18px 40px -28px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transform: translateZ(16px);
+  transition: box-shadow 0.3s var(--ease-out);
+}
+
+.drama-card:hover .drama-card__poster {
+  border-color: transparent;
+  box-shadow:
+    0 26px 54px -28px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.drama-card__poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.24),
+    transparent 42%
+  );
+  mix-blend-mode: screen;
+  transition: opacity 0.25s var(--ease-out);
+}
+
+.drama-card:hover .drama-card__poster::after {
+  opacity: 1;
+}
+
+.drama-card__title {
+  transition: color 0.2s var(--ease-out);
+}
+
+.drama-card:hover .drama-card__title {
+  color: var(--text-1);
+}
+
+/* �Զ��岣������ */
+.hselect {
+  position: relative;
+  min-width: 132px;
+}
+
+.hselect__button {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+}
+
+.hselect__button:hover {
+  border-color: var(--glass-border-strong);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hselect__chevron {
+  color: var(--text-3);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.hselect__chevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+/* 弹层在 Select.tsx 里 portal 到 body，坐标用内联的 fixed（见那里的注释：
+   卡片有 backdrop-filter 会建层叠上下文，留在卡片里一定会被下一张卡片盖住）。
+   宽度按内容撑开（长选项不换行），但不超过视口；宽度上限由 Select.tsx 再夹一次。 */
+.hselect__menu {
+  position: fixed;
+  z-index: 200;
+  width: max-content;
+  min-width: 132px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-strong);
+  background: rgba(26, 22, 19, 0.94);
+  backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  max-height: min(320px, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 量好位置之后才出现，避免"先闪在左上角再跳过来" */
+.hselect__menu[data-ready='true'] {
+  animation: hselect-in 0.16s var(--ease-out);
+}
+
+:root[data-theme='light'] .hselect__menu {
+  background: rgba(250, 245, 238, 0.96);
+}
+
+.hselect__option {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hselect__option:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-1);
+}
+
+.hselect__option[data-active='true'] {
+  background: var(--ember-soft);
+  color: var(--text-1);
+}
+
+@keyframes hselect-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accent-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--swatch, var(--ember));
+  cursor: pointer;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.8);
+  transition: transform 0.18s var(--ease-out), border-color 0.18s;
+}
+
+.accent-swatch:hover {
+  transform: scale(1.08);
+}
+
+.accent-swatch[data-active='true'] {
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+/* ��Ŀ/ҳ���л������� + ��΢λ�ƣ�����Ӳ�� */
+.view-stage {
+  width: 100%;
+  min-height: 100%;
+  animation: view-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.feedv__scroller {
+  animation: feed-tab-in 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes feed-tab-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--slide-dir, 1) * 44px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.feedv__tab-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(8, 7, 6, 0.28);
+  backdrop-filter: blur(3px);
+  animation: view-in 0.3s var(--ease-out);
+}
+
+.view-stage {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.view-stage > * {
+  flex: 1;
+  min-height: 0;
+}
+
+
+/* 去掉显眼的硬外框，用柔和底色代替 */
+.topbar {
+  border-bottom: 0 !important;
+}
+
+.play__top {
+  border-bottom: 0 !important;
+}
+
+.continue-card .drama-card__poster {
+  outline: 0;
+  box-shadow:
+    0 18px 40px -28px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.settings-block {
+  border: 0;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018) 55%, rgba(255, 255, 255, 0.04)),
+    var(--glass-bg);
+  box-shadow:
+    0 20px 44px -38px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.detail-panel {
+  border-left: 0;
+}
+
+/* search with suggestions */
+.search-wrap {
+  flex: 1;
+  max-width: 560px;
+  position: relative;
+}
+
+.search-wrap .search {
+  width: 100%;
+  max-width: none;
+}
+
+.search-suggest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 80;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(24, 20, 17, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 26px 50px -28px rgba(0, 0, 0, 0.8);
+}
+
+.search-suggest__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-suggest__item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-1);
+}
+
+/* category filters: more breathing room */
+.page {
+  padding-bottom: 120px;
+}
+
+.filter-panel {
+  gap: 14px;
+  margin-bottom: 34px;
+}
+
+.filter-row {
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 18px;
+  padding: 4px 0;
+}
+
+.filter-row__chips {
+  gap: 10px;
+  max-height: 176px;
+}
+
+.filter-row .chip {
+  padding: 8px 14px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.filter-row .chip--on {
+  background: color-mix(in srgb, var(--ember) 72%, transparent);
+  color: #fff;
+}
+
+/* search suggestions readable on dark glass */
+.search-suggest__item {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.search-suggest__item:hover {
+  color: #fff;
+}
+
+.search-suggest {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* category chips: soft but visible */
+.filter-row .chip {
+  padding: 7px 13px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+}
+
+:root[data-theme='light'] .filter-row .chip {
+  background: rgba(90, 55, 35, 0.08);
+}
+
+.filter-row .chip--on {
+  background: color-mix(in srgb, var(--ember) 78%, transparent);
+  color: #fff;
+}
+
+.filter-row__chips {
+  gap: 8px;
+  max-height: 148px;
+}
+
+.search-page-field {
+  position: relative;
+  max-width: 560px;
+  margin-bottom: 24px;
+}
+
+.search-page-field .search {
+  width: 100%;
+  max-width: none;
+}
+
+/* volume: drag is inside bar, do not offset twice */
+.xgplayer .xgplayer-bar {
+  left: 12px;
+}
+
+.xgplayer .xgplayer-drag {
+  left: 0;
+}
+
+/* reserve bottom space for fixed dock; hide dock on scroll down */
+.app__main {
+  padding-bottom: 112px;
+}
+
+.page {
+  padding-bottom: 24px;
+}
+
+.dock {
+  transition:
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.25s var(--ease-out);
+}
+
+.dock[data-hidden='true'] {
+  transform: translateY(calc(100% + 30px));
+  opacity: 0;
+  pointer-events: none;
+}

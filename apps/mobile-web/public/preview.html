@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>HorunDrama 模拟机</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 16px 24px;
+        background:
+          radial-gradient(1200px 600px at 50% -10%, rgba(255, 106, 69, 0.12), transparent 60%),
+          #0a0908;
+        color: #f3ece4;
+        font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        overflow: auto;
+      }
+
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .bar__title {
+        font-size: 13px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(243, 236, 228, 0.55);
+        margin-right: 6px;
+      }
+
+      .chip {
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f3ece4;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .chip[data-active='true'] {
+        background: #ff4d2e;
+        border-color: #ff4d2e;
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(255, 77, 46, 0.35);
+      }
+
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 844px;
+        flex: 0 0 auto;
+        border-radius: 46px;
+        padding: 10px;
+        background: linear-gradient(160deg, #2a2724, #12100e 55%, #2a2724);
+        box-shadow:
+          0 40px 90px rgba(0, 0, 0, 0.65),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .phone__screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 38px;
+        overflow: hidden;
+        background: #000;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+
+      /* 灵动岛 */
+      .phone__island {
+        display: none;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 11px;
+        color: rgba(243, 236, 228, 0.6);
+      }
+
+      .status__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #54d68a;
+        box-shadow: 0 0 8px rgba(84, 214, 138, 0.7);
+      }
+
+      .status[data-state='down'] .status__dot {
+        background: #ff4d2e;
+        box-shadow: 0 0 8px rgba(255, 77, 46, 0.7);
+      }
+
+      .hint {
+        font-size: 11.5px;
+        color: rgba(243, 236, 228, 0.45);
+        text-align: center;
+      }
+
+      .hint b {
+        color: #ff8a63;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar">
+      <span class="bar__title">模拟机 · 390×844</span>
+      <button class="chip" data-view="feed" data-active="true">推荐</button>
+      <button class="chip" data-view="theater">剧场</button>
+      <button class="chip" data-view="rank">榜单</button>
+      <button class="chip" data-view="library">追剧</button>
+      <button class="chip" data-view="settings">我的</button>
+      <button class="chip" id="reload">刷新</button>
+      <button class="chip" id="auto" data-active="true">自动刷新</button>
+      <span class="status" id="status"><span class="status__dot"></span><span id="statusText">检测中…</span></span>
+    </div>
+
+    <div class="phone">
+      <div class="phone__island"></div>
+      <div class="phone__screen">
+        <iframe id="screen" src="/#/feed" title="HorunDrama 手机端"></iframe>
+      </div>
+    </div>
+
+    <p class="hint">这就是手机 App 里用的同一套页面。<b>默认每 15 秒自动刷新一次</b>；手动滚动时不会打断，想立刻看结果就点「刷新」。</p>
+
+    <script>
+      const frame = document.getElementById('screen');
+      // 让整台手机在窗口里完整可见（窗口矮时自动缩小，不去改动 390×844 的真实尺寸）
+      const fitPhone = () => {
+        const phoneEl = document.querySelector('.phone');
+        if (!phoneEl) return;
+        const avail = window.innerHeight - 150;
+        const scale = Math.max(0.62, Math.min(1, avail / 884));
+        phoneEl.style.zoom = String(scale);
+      };
+      fitPhone();
+      window.addEventListener('resize', fitPhone);
+      const chips = [...document.querySelectorAll('.chip[data-view]')];
+      const phone = document.querySelector('.phone');
+      let view = 'feed';
+      // 带时间戳重开，绕开浏览器对 html 的缓存，改完样式立刻可见
+      const open = (v) => {
+        view = v;
+        frame.src = `/?t=${Date.now()}#/${v}`;
+      };
+      for (const chip of chips) {
+        chip.addEventListener('click', () => {
+          for (const c of chips) c.dataset.active = String(c === chip);
+          open(chip.dataset.view);
+        });
+      }
+      document.getElementById('reload').addEventListener('click', () => open(view));
+      open(view); // 首屏就用带时间戳的地址，避开缓存
+
+      // 自动刷新：默认开，手机壳上 9 秒没人碰才刷，避免边看边跳
+      const autoBtn = document.getElementById('auto');
+      let auto = true;
+      let touched = Date.now();
+      const touch = () => {
+        touched = Date.now();
+      };
+      phone.addEventListener('pointerdown', touch, { passive: true });
+      phone.addEventListener('pointermove', touch, { passive: true });
+      phone.addEventListener('wheel', touch, { passive: true });
+      autoBtn.addEventListener('click', () => {
+        auto = !auto;
+        autoBtn.dataset.active = String(auto);
+        autoBtn.textContent = auto ? '自动刷新' : '已暂停刷新';
+      });
+      setInterval(() => {
+        if (auto && Date.now() - touched > 9000) open(view);
+      }, 15000);
+
+      // 每 8 秒探一次核心，看它活着没有
+      const statusEl = document.getElementById('status');
+      const statusText = document.getElementById('statusText');
+      const ping = async () => {
+        try {
+          const res = await fetch('/api/health', { cache: 'no-store' });
+          const data = await res.json();
+          statusEl.dataset.state = 'up';
+          statusText.textContent = `核心在线 · v${data.data?.version ?? '?'}`;
+        } catch {
+          statusEl.dataset.state = 'down';
+          statusText.textContent = '核心离线';
+        }
+      };
+      ping();
+      setInterval(ping, 8000);
+
+      // 模拟机里没有真实鼠标活动，推荐页会把操作栏自动收起。
+      // 定时往内页丢一次 pointermove，让模拟机一直显示完整界面，方便看样式。
+      setInterval(() => {
+        try {
+          frame.contentWindow.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+        } catch {
+          /* 跨源或还没加载好，忽略 */
+        }
+      }, 1600);
+    </script>
+  </body>
+</html>
+
+
+
+

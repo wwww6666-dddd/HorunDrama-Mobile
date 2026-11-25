@@ -1,0 +1,369 @@
+/* 全局底座：只放重置、布局骨架与设计样张的局部样式。组件样式在 design/ 下。 */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* 只在 .app__main 里滚：整窗滚动会让"触底自动加载"失效（实测踩到） */
+  overflow: hidden;
+}
+
+/* 关键：外层必须有确定高度，main 才能拿到 minmax(0,1fr) 并成为滚动容器 */
+.app {
+  position: relative;
+  z-index: var(--z-content);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.app__main {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
+  /* 给固定 dock 留出可滚动的安全区，最后一块内容能滚到 dock 上方 */
+  padding-bottom: 112px;
+}
+
+::selection {
+  background: var(--ember-soft);
+  color: var(--text-1);
+}
+
+/* 滚动条：细、半透明，不与玻璃抢注意力 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(242, 234, 224, 0.18) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: rgba(242, 234, 224, 0.18);
+}
+
+code {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(242, 234, 224, 0.08);
+}
+
+/* ---------- 顶栏内部 ---------- */
+
+/* 桌面壳里窗口按钮是自绘的（WindowControls），不需要给系统按钮留白；
+   浏览器里没有窗口按钮，也就不会出现。 */
+
+/* ---------- 自绘窗口按钮 ---------- */
+.win-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.win-controls button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.win-controls button:hover {
+  color: var(--text-1);
+  background: var(--hover-wash);
+}
+
+.win-controls button:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 1px;
+}
+
+.win-controls__close:hover {
+  color: #fff;
+  background: #d63b2c;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 0 0 auto;
+}
+
+.brand__mark {
+  border-radius: 9px;
+  box-shadow: 0 6px 18px -10px rgba(255, 77, 46, 0.9);
+}
+
+.brand__name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  letter-spacing: 0.02em;
+}
+
+.topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+/* 核心连接指示：三个状态，不打扰但一眼能看出 */
+.core-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin: 0 var(--s-2);
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px rgba(242, 234, 224, 0.06);
+}
+
+.core-dot[data-state='ok'] {
+  background: #54d68a;
+  box-shadow: 0 0 0 3px rgba(84, 214, 138, 0.16);
+}
+
+.core-dot[data-state='idle'] {
+  background: var(--ink-4, rgba(243, 236, 228, 0.28));
+}
+
+.core-dot[data-state='down'] {
+  background: var(--ember);
+  box-shadow: 0 0 0 3px rgba(255, 77, 46, 0.18);
+}
+
+/* ---------- 设计样张 ---------- */
+.showcase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-height: 150px;
+}
+
+.showcase__label {
+  margin: 0;
+  font-size: var(--fs-caption);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.showcase__stack {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.showcase__panel {
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.showcase__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.showcase__hint {
+  margin: 0;
+  font-size: var(--fs-caption);
+  color: var(--text-3);
+}
+
+.showcase__serif {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-title);
+}
+
+.showcase__body {
+  margin: 0;
+  color: var(--text-2);
+}
+
+@media (max-width: 720px) {
+  .brand__name,
+  .dock__item span {
+    display: none;
+  }
+
+  .search {
+    max-width: none;
+  }
+}
+
+/* 两个页面共用的播放器外壳（ui/DramaPlayer.tsx） */
+.drama-player {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* 注意：不再用"覆盖全屏的点击层"——它会把控制条/进度条的点击一起吃掉
+   （实测点进度条会变成暂停）。单击/双击改成容器上的事件 + 目标判断。 */
+
+/* 全屏时控制条贴到屏幕最底，字和进度条会顶到边：给一点内边距和更厚的渐变 */
+.xgplayer:fullscreen .xgplayer-controls,
+.xgplayer.xgplayer-is-fullscreen .xgplayer-controls,
+.xgplayer.xgplayer-cssfullscreen .xgplayer-controls {
+  height: 64px;
+  padding: 0 18px 8px;
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5) 38%, rgba(0, 0, 0, 0.88));
+}
+
+.xgplayer:fullscreen .xgplayer-progress-outer,
+.xgplayer.xgplayer-is-fullscreen .xgplayer-progress-outer {
+  height: 4px;
+}
+
+.xgplayer:fullscreen .xgplayer-time,
+.xgplayer.xgplayer-is-fullscreen .xgplayer-time {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+/* 控制条里的清晰度入口：按钮直接写当前画质，点开是自己的玻璃菜单
+   （原生 select 的弹层是系统样式，和整体暗色播放器完全不搭） */
+.xg-extras__quality {
+  position: relative;
+  display: inline-flex;
+}
+
+.xg-extras__btn--quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 82px;
+  justify-content: center;
+}
+
+.xg-extras__caret {
+  font-size: 9px;
+  opacity: 0.66;
+  transform: scaleY(-1);
+  line-height: 1;
+}
+
+/* 遮罩：菜单浮在 document.body 上，点空白处只关菜单，不会穿透到视频/按钮 */
+.xg-quality-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(8, 7, 6, 0.28);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  animation: quality-fade 0.16s var(--ease-out);
+}
+
+@keyframes quality-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.xg-quality {
+  position: fixed;
+  z-index: 61;
+  width: 232px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(18, 16, 14, 0.94);
+  box-shadow: 0 22px 48px -20px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  color: #f3ece4;
+  animation: quality-in 0.16s var(--ease-out);
+}
+
+@keyframes quality-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.xg-quality__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(243, 236, 228, 0.82);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.xg-quality__item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.xg-quality__item[data-active='true'] {
+  background: color-mix(in srgb, var(--ember) 26%, transparent);
+  color: #fff;
+}
+
+.xg-quality__label {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.xg-quality__note {
+  font-size: 11px;
+  color: rgba(243, 236, 228, 0.5);
+}
+
+.xg-quality__item[data-active='true'] .xg-quality__note {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.xg-quality__check {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  translate: 0 -50%;
+  font-size: 12px;
+  color: var(--ember);
+}

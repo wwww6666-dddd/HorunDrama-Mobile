@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <WebView
+        android:id="@+id/web"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/bg" />
+
+    <!-- 全屏视频时把 SurfaceView 挂到这里 -->
+    <FrameLayout
+        android:id="@+id/fullscreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:visibility="gone" />
+
+    <!-- 本地核心启动中/失败时的兜底页（不是系统那个白底错误页） -->
+    <LinearLayout
+        android:id="@+id/errorBox"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:background="@color/bg"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/errorTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="正在启动本地核心…"
+            android:textColor="@color/text1"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/errorText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:textColor="@color/text2"
+            android:textSize="13sp"
+            android:text="首次启动会释放内置运行组件，大约需要 5–15 秒。" />
+
+        <Button
+            android:id="@+id/retryBtn"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="24dp"
+            android:text="重新启动"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:backgroundTint="@color/ember" />
+    </LinearLayout>
+</FrameLayout>

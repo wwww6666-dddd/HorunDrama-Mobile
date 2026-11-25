@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 本地测试：允许对局域网里的电脑使用明文 HTTP -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

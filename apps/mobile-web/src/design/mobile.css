@@ -1,0 +1,1240 @@
+/**
+ * 手机端设计层（最后加载）。
+ *
+ * 这一层不是"把桌面窗口压扁"，而是按竖屏手机重新定版：
+ * 1. 外壳：48px 图标化顶栏 + 5 格液态底部导航（药丸跟随手指流动）；
+ * 2. 页面：页头和内容一起滚，标题降字号、动作收成胶囊；
+ * 3. 推荐：整屏铺满、信息常驻（不再随控制条一起消失）；
+ * 4. 我的/设置：去掉外层卡片，改成"分组标题 + 行"，组间大留白；
+ * 5. 交互：按压回弹、磁吸式吸附滚动、卡片轻微倾斜高光，模仿真实材质而不是硬切。
+ */
+
+/* ---------- 基础触摸行为 ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+/* 手机专属的顶栏搜索图标：桌面宽度下不出现 */
+.topbar__mobile-search {
+  display: none;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --m-gutter: 18px;
+  --m-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --m-spring: cubic-bezier(0.34, 1.32, 0.48, 1);
+}
+
+@media (max-width: 900px) {
+  :root {
+    --topbar-h: 46px;
+    --dock-h: 60px;
+    --page-pad: var(--m-gutter);
+    --content-max: 100%;
+    --fs-display: 23px;
+    --fs-title: 16px;
+    --r-glass: 16px;
+  }
+
+  /* ================= 外壳 ================= */
+  .app {
+    height: 100%;
+    min-height: 100dvh;
+    background: radial-gradient(120% 60% at 50% -10%, #1d1713 0%, #0d0b0a 60%, #080707 100%);
+  }
+
+  .app__main {
+    padding-top: calc(var(--topbar-h) + var(--safe-top));
+    padding-bottom: calc(78px + var(--safe-bottom));
+  }
+
+  .app__main[data-view='feed'] {
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* ---------- 顶栏：只留图标、搜索、头像 ---------- */
+  .topbar {
+    height: calc(var(--topbar-h) + var(--safe-top));
+    padding: var(--safe-top) 14px 0;
+    gap: 8px;
+    border-bottom: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* 顶栏不再画一条横线，改用一层很淡的、跟着页面滚动的雾 */
+  .topbar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(180deg, rgba(10, 9, 8, 0.72), rgba(10, 9, 8, 0));
+    pointer-events: none;
+  }
+
+  .brand {
+    gap: 0;
+  }
+
+  .brand__mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+
+  /* 竖屏只有 390 宽，品牌名让位给内容 */
+  .brand__name {
+    display: none;
+  }
+
+  .topbar .search-wrap {
+    display: none;
+  }
+
+  .topbar__actions {
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .topbar__reward,
+  .topbar__feedback,
+  .topbar__share,
+  .topbar__update,
+  .core-dot,
+  .win-controls,
+  .topbar__actions .btn--primary {
+    display: none !important;
+  }
+
+  /* 顶栏只留两个入口：搜索 + 头像。主题开关放到「我的」里 */
+  .topbar__actions .btn {
+    display: none !important;
+  }
+
+  .topbar__actions .topbar__mobile-search {
+    display: inline-grid !important;
+  }
+
+  .topbar__mobile-search {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .topbar__actions .account-chip {
+    padding: 2px;
+    gap: 0;
+    border-radius: 50%;
+  }
+
+  .topbar__actions .account-chip__name {
+    display: none;
+  }
+
+  .topbar__actions .account-chip__avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+  }
+
+  /* ================= 底部导航：5 格 + 液态药丸 ================= */
+  .dock {
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + var(--safe-bottom));
+    width: auto;
+    height: var(--dock-h);
+    padding: 4px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    border-radius: 20px;
+    background: rgba(20, 17, 15, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(22px) saturate(1.4);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    translate: 0 0;
+    overflow: visible;
+  }
+
+  .dock::before {
+    opacity: 0;
+  }
+
+  /* 药丸：位置跟格子实测，过渡带一点过冲，看起来像"流"过去 */
+  .dock__pill {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    border-radius: 16px;
+    background: linear-gradient(
+      160deg,
+      var(--ember, #ff5a37),
+      color-mix(in srgb, var(--ember, #ff5a37) 78%, #000 22%)
+    );
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+      0 8px 20px color-mix(in srgb, var(--ember, #ff5a37) 34%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transition:
+      transform 0.42s var(--m-spring),
+      width 0.42s var(--m-spring);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .dock__item {
+    position: relative;
+    z-index: 1;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 0 5px;
+    font-size: 10px;
+    line-height: 1.2;
+    min-height: 0;
+    border-radius: 15px;
+    color: rgba(255, 255, 255, 0.62);
+    background: transparent;
+    transition:
+      color 0.2s var(--m-ease),
+      transform 0.16s var(--m-ease);
+  }
+
+  .dock__item span {
+    display: inline;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .dock__item svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .dock__item[data-active='true'] {
+    color: #fff;
+    /* 选中块交给下面那枚会流动的药丸，item 本身保持透明 */
+    background: transparent !important;
+  }
+
+  .dock__item[data-active='true'] span {
+    font-weight: 600;
+  }
+
+  /* 按下去像按到实体键：轻微下沉 */
+  .dock__item:active {
+    transform: scale(0.94);
+  }
+
+  .dock__item:hover {
+    transform: none;
+  }
+
+  .dock[data-hidden='true'] {
+    transform: translateY(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ================= 页面头 ================= */
+  .page {
+    padding: 8px var(--page-pad) 22px;
+  }
+
+  .page__head {
+    align-items: flex-end;
+    flex-direction: row;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .page__title {
+    font-family: var(--font-sans);
+    font-size: var(--fs-display);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
+
+  .page__sub {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-3);
+    max-width: 60vw;
+  }
+
+  .page__actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+    flex: 0 0 auto;
+    padding-bottom: 2px;
+  }
+
+  .page__actions .btn,
+  .page__head .btn {
+    height: 30px;
+    padding: 0 11px;
+    font-size: 12px;
+    border-radius: 999px;
+  }
+
+  .page__head .btn--ghost,
+  .page__actions .btn--ghost {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.045);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .page__actions .btn:active {
+    transform: scale(0.95);
+  }
+
+  /* ================= 区块 ================= */
+  .section {
+    margin-bottom: 26px;
+  }
+
+  .section__head {
+    margin-bottom: 10px;
+    align-items: baseline;
+  }
+
+  .section__title {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+  }
+
+  .section__count {
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  .card-grid {
+    gap: 14px 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lib2-grid {
+    gap: 12px 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drama-card {
+    transition: transform 0.18s var(--m-ease);
+  }
+
+  .drama-card:active {
+    transform: scale(0.97);
+  }
+
+  .drama-card__poster {
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+  }
+
+  .drama-card__title {
+    font-size: 12.5px;
+    margin-top: 7px;
+  }
+
+  .drama-card__meta {
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  /* ================= 筛选/搜索 ================= */
+  .filter-panel {
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .filter-row {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .filter-row__chips {
+    max-height: none;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .chip {
+    min-height: 30px;
+    font-size: 12px;
+    flex: 0 0 auto;
+  }
+
+  .search-page-field {
+    margin-bottom: 16px;
+  }
+
+  /* ================= 剧场：横向磁吸滑轨 ================= */
+  .rail {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* 松手自动吸到最近的卡片上，别停在半张卡的位置 */
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: var(--page-pad);
+    padding: 2px var(--page-pad) 8px;
+    margin: 0 calc(var(--page-pad) * -1);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rail > * {
+    flex: 0 0 122px;
+    width: 122px;
+    min-width: 122px;
+    max-width: 122px;
+    scroll-snap-align: start;
+  }
+
+  .rail .drama-card__poster {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+  }
+
+  .rail .drama-card__title {
+    font-size: 12.5px;
+    -webkit-line-clamp: 1;
+  }
+
+  .rail .drama-card__meta {
+    font-size: 10.5px;
+  }
+
+  /* ================= 榜单 ================= */
+  .rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rank-row {
+    display: grid;
+    grid-template-columns: 26px 60px minmax(0, 1fr) 10px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+  }
+
+  .rank-row:active {
+    transform: scale(0.985);
+  }
+
+  .rank-row--actor {
+    grid-template-columns: 26px 52px minmax(0, 1fr);
+  }
+
+  .rank-row__no {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-3);
+  }
+
+  .rank-row__no[data-top='true'] {
+    font-size: 16px;
+    color: var(--ember);
+    text-shadow: 0 0 16px color-mix(in srgb, var(--ember) 60%, transparent);
+  }
+
+  /* 前三名整行带一点暖光，扫一眼就知道榜首在哪 */
+  .rank-list > .rank-row:nth-child(-n + 3) {
+    border: 1px solid rgba(255, 122, 74, 0.24);
+    background: linear-gradient(160deg, rgba(255, 96, 52, 0.09), rgba(255, 255, 255, 0.02));
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* 名次本身也要有级别：前三名用强调色和更大的字号 */
+  .rank-list > .rank-row:nth-child(-n + 3) .rank-row__no {
+    color: var(--ember);
+    font-size: 18px;
+    font-weight: 800;
+    text-shadow: 0 0 18px rgba(255, 96, 52, 0.45);
+  }
+
+  /* 榜单筛选：一行横向滑，不堆成三行 */
+  .board-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 10px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .board-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 右边淡出，暗示还能继续滑 */
+  .board-tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 86%, transparent 100%);
+  }
+
+  .board-tabs .chip {
+    flex: 0 0 auto;
+  }
+
+  .rank-row__cover,
+  .rank-row__avatar {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 9px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .rank-row__avatar {
+    aspect-ratio: 1;
+    border-radius: 50%;
+  }
+
+  .rank-row__cover img,
+  .rank-row__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .rank-row__badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 5px;
+    border-radius: 6px;
+    font-size: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+  }
+
+  .rank-row__main {
+    min-width: 0;
+  }
+
+  .rank-row__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .rank-row__meta {
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  .rank-row__intro {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-3);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .rank-row__chev {
+    color: var(--text-3);
+    font-size: 14px;
+    text-align: right;
+  }
+
+  /* ================= 详情：底部抽屉 ================= */
+  .detail-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: min(88dvh, 780px);
+    padding: 18px 16px calc(16px + var(--safe-bottom));
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px 22px 0 0;
+    animation: sheet-in 0.32s var(--m-ease) both;
+  }
+
+  @keyframes sheet-in {
+    from {
+      opacity: 0;
+      transform: translateY(26px);
+    }
+  }
+
+  .detail-close {
+    top: 10px;
+    right: 10px;
+  }
+
+  .detail-head {
+    gap: 12px;
+  }
+
+  .detail-cover {
+    width: 92px;
+    border-radius: 12px;
+  }
+
+  .detail-title {
+    font-size: 18px;
+  }
+
+  .detail-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .detail-actions .btn {
+    flex: 1 1 40%;
+    height: 38px;
+  }
+
+  /* ================= 弹窗 ================= */
+  .dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 80px);
+    padding-bottom: calc(18px + var(--safe-bottom));
+    border-radius: 20px;
+  }
+
+  .sharedlg__card {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 60px);
+    padding-bottom: calc(16px + var(--safe-bottom));
+  }
+
+  .update-pop {
+    top: calc(var(--topbar-h) + var(--safe-top) + 8px);
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .mini-launcher {
+    display: none;
+  }
+
+  /* ================= 推荐：整屏、信息常驻 ================= */
+  .feedv {
+    padding: 0;
+    gap: 0;
+    height: 100%;
+    background: #000;
+  }
+
+  .feedv__side {
+    display: none !important;
+  }
+
+  .feedv__stage,
+  .feedv__slide {
+    padding: 0;
+    height: 100%;
+  }
+
+  .feedv__frame {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* 横版素材放进竖屏：视频保持 contain，上下用放大模糊的海报当氛围底，
+     既保住构图又不出现两块死黑 */
+  .feedv__poster {
+    background-size: cover !important;
+    background-position: center !important;
+    filter: blur(38px) brightness(0.56) saturate(1.35);
+    transform: scale(1.24);
+  }
+
+  .feedv__frame .xgplayer,
+  .feedv__frame .xg-host,
+  .feedv__frame .drama-player {
+    background: transparent !important;
+  }
+
+  .feedv__frame video {
+    object-fit: contain !important;
+    background: transparent;
+  }
+
+  /* 上下各一层柔和的暗罩，让文字和图标压在任何画面上都能读 */
+  .feedv__slide::before,
+  .feedv__slide::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .feedv__slide::before {
+    top: 0;
+    height: calc(var(--safe-top) + 120px);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent);
+  }
+
+  .feedv__slide::after {
+    bottom: 0;
+    height: 300px;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.82) 8%, rgba(0, 0, 0, 0.4) 45%, transparent);
+  }
+
+  .feedv__shade {
+    background: none;
+  }
+
+  /* 顶部频道：贴着画面中间偏上，做成小胶囊，不跟顶栏抢位置 */
+  .feedv__tabs {
+    top: calc(var(--topbar-h) + var(--safe-top) + 2px);
+    left: 50%;
+    translate: -50% 0;
+    z-index: 8;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .feedv__tab {
+    height: 26px;
+    padding: 0 11px;
+    font-size: 12px;
+    border-radius: 999px;
+  }
+
+  /* 弹幕压在频道之下，并且整体下沉到 tabs 以下，别横穿小胶囊 */
+  .feedv .danmaku-layer {
+    top: 42% !important;
+    z-index: 3 !important;
+    pointer-events: none;
+  }
+
+  .feedv .danmaku-item {
+    font-size: 15px !important;
+    opacity: 0.92;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  }
+
+  .feedv .xg-danmu,
+  .feedv .danmaku,
+  .feedv .xgplayer-danmu {
+    z-index: 3 !important;
+  }
+
+  .feedv .xgplayer-controls {
+    bottom: calc(70px + var(--safe-bottom)) !important;
+    height: 44px;
+  }
+
+  /* 信息区：默认就该看得见；控制条收起时也不跟着消失（只收右侧按钮） */
+  .feedv__info {
+    left: var(--m-gutter);
+    right: 74px;
+    bottom: calc(96px + var(--safe-bottom));
+    max-width: none;
+    z-index: 5;
+  }
+
+  .feedv[data-chrome-hidden='true'] .feedv__info {
+    opacity: 1;
+    transform: none;
+  }
+
+  .feedv[data-chrome-hidden='true'] .feedv__rail {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .feedv__rail {
+    right: 4px;
+    bottom: calc(136px + var(--safe-bottom));
+    gap: 10px;
+    z-index: 6;
+  }
+
+  .feedv__rail-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 18px;
+  }
+
+  .feedv__quality-busy {
+    top: calc(var(--topbar-h) + var(--safe-top) + 46px);
+  }
+
+  html.is-player-fullscreen .feedv__info {
+    bottom: calc(76px + var(--safe-bottom));
+  }
+
+  html.is-player-fullscreen .feedv__rail {
+    bottom: calc(96px + var(--safe-bottom));
+  }
+
+  html.is-player-fullscreen .feedv .xgplayer-controls {
+    bottom: 0 !important;
+    height: 52px;
+  }
+
+  /* ================= 播放页 ================= */
+  .play__dragbar {
+    display: none;
+  }
+
+  .play__top {
+    padding: calc(var(--safe-top) + 8px) 12px 28px;
+    gap: 8px;
+  }
+
+  .play__top-title strong {
+    font-size: 16px;
+    max-width: 70vw;
+  }
+
+  .play__top-title .play__ep {
+    font-size: 11.5px;
+  }
+
+  .play__rail {
+    right: 6px;
+    bottom: calc(126px + var(--safe-bottom));
+    gap: 12px;
+  }
+
+  .play__rail-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 19px;
+  }
+
+  .play__meta {
+    left: 14px;
+    right: 66px;
+    bottom: calc(112px + var(--safe-bottom));
+    max-width: none;
+  }
+
+  .play__meta-title {
+    font-size: 19px;
+  }
+
+  .play__waiting-card {
+    width: min(320px, calc(100vw - 40px));
+  }
+
+  .play__toast {
+    left: 50%;
+    translate: -50% 0;
+    right: auto;
+    max-width: calc(100vw - 32px);
+  }
+
+  .play__comments {
+    width: 100vw;
+    max-width: none;
+    right: 0;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .play__comments-mask {
+    align-items: flex-end;
+  }
+
+  .play__sheet {
+    width: 100vw;
+    max-width: none;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+
+  .play__sheet-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pset {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + var(--safe-bottom));
+    width: auto;
+    max-height: 72dvh;
+    border-radius: 20px;
+  }
+
+  .pset__chip {
+    height: 32px;
+  }
+
+  .xg-quality {
+    width: min(232px, calc(100vw - 32px));
+  }
+
+  /* 播放页上下压暗罩，保证标题可读 */
+  .play::before,
+  .play::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .play::before {
+    top: 0;
+    height: calc(var(--safe-top) + 96px);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), transparent);
+  }
+
+  .play::after {
+    bottom: 0;
+    height: calc(var(--safe-bottom) + 210px);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.72), transparent);
+  }
+
+  /* ================= 我的 / 设置：去卡片化 ================= */
+  .settings-grid,
+  .settings-block {
+    width: 100%;
+  }
+
+  /* 每组只留标题和行，不再套一层玻璃卡片 */
+  .settings-block {
+    padding: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    margin-bottom: 26px;
+  }
+
+  .settings-block__title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin-bottom: 6px;
+    padding-left: 2px;
+  }
+
+  .settings-row {
+    padding: 13px 2px;
+    gap: 12px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .settings-row:last-of-type {
+    border-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  .settings-label {
+    font-size: 14.5px;
+    font-weight: 550;
+  }
+
+  .settings-hint {
+    font-size: 11.5px;
+    line-height: 1.55;
+    margin-top: 3px;
+    color: var(--text-3);
+  }
+
+  .settings-path {
+    font-size: 11px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+
+  /* 账号块：手机上的"我的"页头，头像大一点、名字大一点 */
+  .account-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 0;
+    border: 0;
+    background: none;
+  }
+
+  .account-card__avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .account-card .settings-label {
+    font-size: 17px;
+    font-weight: 650;
+  }
+
+  /* 未登录时的头像占位：不是灰方块，是一枚有体积感的玻璃钮 */
+  .settings-row.account-hero {
+    border-bottom: 0;
+    padding-top: 2px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .account-card__avatar--empty {
+    display: block;
+    flex: 0 0 52px;
+    background:
+      radial-gradient(70% 70% at 50% 26%, rgba(255, 255, 255, 0.34), transparent 60%),
+      linear-gradient(155deg, rgba(255, 110, 70, 0.42), rgba(255, 255, 255, 0.06));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 22px rgba(0, 0, 0, 0.42);
+  }
+
+  .settings-row .btn {
+    flex: 0 0 auto;
+    height: 32px;
+    padding: 0 13px;
+    font-size: 12.5px;
+    border-radius: 999px;
+  }
+
+  .settings-row select {
+    height: 32px;
+    font-size: 12.5px;
+    max-width: 46vw;
+    border-radius: 10px;
+  }
+
+  /* 手机号登录：上下排（手机上左右排会挤成极窄输入框） */
+  .sms-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .sms-form__phone,
+  .sms-form__code {
+    width: 100%;
+  }
+
+  .settings-input {
+    font-size: 16px; /* 小于 16px 时 iOS 会自动放大，安卓键盘也更顺手 */
+    height: 40px;
+    border-radius: 11px;
+  }
+
+  .settings-keys {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  /* ================= 新剧 ================= */
+  .nr-row {
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 12px;
+    padding: 11px;
+    border-radius: 14px;
+  }
+
+  .nr-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .nr-actions .btn {
+    height: 32px;
+    font-size: 12px;
+    border-radius: 999px;
+  }
+
+  .nr-cover {
+    width: 62px;
+    aspect-ratio: 3 / 4;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .nr-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .nr-title {
+    font-size: 15px;
+  }
+
+  .nr-intro {
+    -webkit-line-clamp: 2;
+    font-size: 11.5px;
+  }
+
+  .nr-dates {
+    gap: 7px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nr-date {
+    min-width: 52px;
+    padding: 7px 6px;
+    border-radius: 11px;
+  }
+
+  /* ================= 下载 ================= */
+  .dl-list {
+    gap: 8px;
+  }
+
+  .dl-row {
+    padding: 11px;
+    border-radius: 14px;
+  }
+
+  .dl-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .dl-toolbar {
+    gap: 8px;
+  }
+
+  /* 打开下载目录会在电脑上弹资源管理器，手机点了没意义 */
+  .dl-open-dir {
+    display: none;
+  }
+
+  /* ================= 空状态 / 分段控件 ================= */
+  /* 空状态在手机上不该占掉半屏 */
+  .state {
+    min-height: 148px;
+    padding: 22px 16px;
+    border-radius: 14px;
+  }
+
+  .state p {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .lib2-tabs,
+  .lib2-subtabs {
+    padding: 3px;
+    border-radius: 12px;
+  }
+
+  .lib2-tab {
+    height: 30px;
+    font-size: 12.5px;
+    border-radius: 10px;
+  }
+
+  /* ================= 杂项 ================= */
+  .desktop-only {
+    display: none !important;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-size: max(12px, 1em);
+  }
+
+  .chip:active,
+  .btn:active {
+    transform: scale(0.96);
+  }
+
+  .dock__item:hover,
+  .drama-card:hover,
+  .chip:hover {
+    transform: none;
+  }
+}
+
+/* 横屏：视频仍然铺满，底部胶囊收窄一点 */
+@media (max-width: 900px) and (orientation: landscape) {
+  .feedv__info {
+    bottom: calc(66px + var(--safe-bottom));
+  }
+
+  .feedv__rail {
+    bottom: calc(80px + var(--safe-bottom));
+  }
+
+  .dock {
+    left: 50%;
+    right: auto;
+    width: min(560px, 92vw);
+    translate: -50% 0;
+  }
+}
+
+
+
+
+
+
