@@ -35,6 +35,10 @@ try {
   await b.send('Page.reload');
   await sleep(1200);
 
+  // 预热一次推荐流：首个视口往往是冷启动，2~3 秒内可能还停在骨架屏
+  await b.goto(`${BASE}/#/feed`);
+  await sleep(3000);
+
   for (const [width, height] of SIZES) {
     await b.send('Emulation.setDeviceMetricsOverride', {
       width,
@@ -48,7 +52,7 @@ try {
       const hash = view === 'theater' ? '#/' : `#/${view}`;
       await b.goto(`${BASE}/${hash}`);
       await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: width / 2, y: 160 });
-      await sleep(view === 'feed' ? 2100 : 1500);
+      await sleep(view === 'feed' ? 3200 : 1500);
       if (view === 'feed') {
         // 再晃一次，确保顶栏（汉堡/搜索）在快门按下时是显示的
         await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: width / 2, y: 220 });

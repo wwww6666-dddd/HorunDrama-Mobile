@@ -1953,279 +1953,6 @@ html.m-mode * {
   right: 14px;
 }
 
-/* --------------------- 推荐流（贴边视频 + 底部信息，对标短剧 App） --------------------- */
-
-.feedv__m-tools,
-.feedv__watch {
-  display: none;
-}
-
-html.m-mode .feedv {
-  background: #000;
-}
-
-html.m-mode .feedv__side {
-  display: none !important;
-}
-
-html.m-mode .feedv__frame {
-  position: absolute;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 0 !important;
-  background: #000 !important;
-  box-shadow: none !important;
-  border: 0 !important;
-  overflow: visible;
-}
-
-html.m-mode .feedv__frame .xgplayer,
-html.m-mode .feedv__frame .xg-host,
-html.m-mode .feedv__frame .drama-player {
-  background: transparent !important;
-}
-
-html.m-mode .feedv__frame .xgplayer-poster {
-  display: none !important;
-}
-
-html.m-mode .feedv__frame video {
-  position: absolute !important;
-  top: 74px !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: calc(100vw * 1) !important;
-  object-fit: cover !important;
-  border-radius: 0;
-  background: #000;
-}
-
-html.m-mode .feedv__poster {
-  display: block !important;
-  position: absolute;
-  top: 74px;
-  left: 0;
-  width: 100%;
-  height: calc(100vw * 1);
-  background-size: cover !important;
-  background-position: center !important;
-  filter: none !important;
-  transform: none !important;
-  opacity: 1;
-}
-
-html.m-mode .feedv__waiting {
-  position: absolute;
-  top: 74px;
-  left: 0;
-  right: 0;
-  height: calc(100vw * 1);
-  background: transparent !important;
-  color: rgba(255, 255, 255, 0.8);
-  z-index: 3;
-}
-
-html.m-mode .feedv__slide::after {
-  height: calc(74px + 100vw * 1);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 22%, transparent 62%, rgba(0, 0, 0, 0.62) 100%);
-}
-
-html.m-mode .feedv__info {
-  left: 18px;
-  right: 76px;
-  top: calc(74px + 100vw * 1 + 18px);
-  bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom, 0px) + 12px + 50px + 14px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-html.m-mode .feedv__badge {
-  height: 22px;
-  padding: 0 8px;
-  font-size: 11px;
-  border-radius: 7px;
-}
-
-html.m-mode .feedv__badges .feedv__badge--ghost {
-  display: none;
-}
-
-html.m-mode .feedv__title {
-  margin-top: 10px;
-  font-size: 21px !important;
-  line-height: 1.28;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-html.m-mode .feedv__title::after {
-  content: ' ›';
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-html.m-mode .feedv__tags {
-  margin-top: 8px;
-  gap: 6px;
-}
-
-html.m-mode .feedv__tag {
-  height: 24px;
-  padding: 0 9px;
-  font-size: 11px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-html.m-mode .feedv__intro {
-  margin-top: 9px;
-  font-size: 13px;
-  line-height: 1.62;
-  color: rgba(255, 255, 255, 0.62);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-html.m-mode .feedv__intro--open {
-  -webkit-line-clamp: unset;
-}
-
-html.m-mode .feedv__info-actions {
-  display: none !important;
-}
-
-html.m-mode .feedv__m-tools {
-  display: block;
-  margin-top: 6px;
-}
-
-html.m-mode .feedv__m-link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: color-mix(in srgb, var(--m-accent) 84%, #fff);
-  font-family: var(--m-font);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-html.m-mode .feedv__note {
-  display: block;
-  margin: 12px 0 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.34);
-}
-
-html.m-mode .feedv__rail {
-  right: 8px;
-  left: auto;
-  bottom: auto;
-  top: calc(74px + 100vw * 1 - 240px);
-  gap: 16px;
-  z-index: 6;
-}
-
-html.m-mode .feedv__rail-btn > span:not(.feedv__rail-icon) {
-  display: none;
-}
-
-html.m-mode .feedv__rail-btn:nth-child(5),
-html.m-mode .feedv__rail-btn:nth-child(6) {
-  display: none;
-}
-
-html.m-mode .feedv__rail-icon {
-  width: 36px;
-  height: 36px;
-  font-size: 26px;
-  line-height: 36px;
-  background: none;
-  border: 0;
-  box-shadow: none;
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-}
-
-html.m-mode .feedv__rail-num {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-}
-
-html.m-mode .feedv__watch {
-  position: absolute;
-  z-index: 7;
-  left: 16px;
-  right: 16px;
-  bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom, 0px) + 12px);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 50px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #1b1a19;
-  box-shadow: none;
-  color: #fff;
-  font-family: var(--m-font);
-  font-size: 14px;
-  font-weight: 600;
-  text-align: left;
-  transition: transform 0.18s var(--m-ease), background 0.18s var(--m-ease);
-}
-
-html.m-mode .feedv__watch:active {
-  transform: scale(0.985);
-  background: #232120;
-}
-
-html.m-mode .feedv__watch-play {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: #fff;
-  color: #111;
-  font-size: 11px;
-  line-height: 1;
-}
-
-html.m-mode .feedv__watch-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-html.m-mode .feedv__watch-arrow {
-  flex: none;
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-html.m-mode .feedv[data-chrome-hidden='true'] .feedv__rail {
-  opacity: 1 !important;
-  transform: none !important;
-  pointer-events: auto !important;
-}
-
-html.m-mode .feedv .danmaku-layer {
-  top: 80px !important;
-  height: calc(100vw * 1 - 60px) !important;
-  overflow: hidden;
-  z-index: 4 !important;
-}
 /* ------------------------- 播放页（沉浸式） ------------------------- */
 
 html.m-mode .play {
@@ -3317,5 +3044,437 @@ html.m-mode .m-hero::before {
 
   .m-hero__actions .m-btn {
     white-space: nowrap;
+  }
+}
+
+/* ================= 推荐流 B1：16:9 舞台 + 左下三层 + 右侧四操作 =================
+   官方 392.7 × 218 dp 的 16:9 画面条：上下黑边是设计的一部分，不再回到 1:1 满宽。
+   手机端新增的 .feedv__m-stage 只在 m-mode 下渲染，桌面端走原来的 .feedv__info。 */
+
+.feedv__m-stage,
+.feedv__m-tools,
+.feedv__watch {
+  display: none;
+}
+
+html.m-mode {
+  /* 16:9 画面条：宽度铺满，高度 = 宽 × 9/16 */
+  --feed-band-h: calc(100vw * 0.5625);
+  --feed-top: calc(var(--m-safe-top) + 44px);
+  --feed-watch-h: 48px;
+  /* 底栏 + 安全区 + 8dp：剧集条贴着底栏上方 */
+  --feed-bottom: calc(var(--m-tabbar-h) + var(--m-safe-bottom, 0px) + 8px);
+  /* 舞台在「顶栏下沿」和「剧集条上沿」之间垂直居中，至少留 8dp */
+  --feed-media-top: calc(
+    var(--feed-top) +
+    max(8px, (100vh - var(--feed-top) - var(--feed-bottom) - var(--feed-watch-h) - 8px - var(--feed-band-h)) / 2)
+  );
+}
+
+html.m-mode .feedv {
+  background: #000;
+}
+
+html.m-mode .feedv__side {
+  display: none !important;
+}
+
+/* frame 仍是整屏宿主；真正的画面由下面 video 定位成 16:9 条 */
+html.m-mode .feedv__frame {
+  position: absolute;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  overflow: hidden;
+}
+
+html.m-mode .feedv__frame .xgplayer,
+html.m-mode .feedv__frame .xg-host,
+html.m-mode .feedv__frame .drama-player {
+  background: transparent !important;
+}
+
+html.m-mode .feedv__frame .xgplayer-poster {
+  display: none !important;
+}
+
+html.m-mode .feedv__frame video {
+  position: absolute !important;
+  top: var(--feed-media-top) !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: var(--feed-band-h) !important;
+  object-fit: cover !important;
+  background: #000;
+}
+
+/* 未起播时用海报填同一条 16:9 画面，避免两块突兀的黑 */
+html.m-mode .feedv__poster {
+  display: block !important;
+  position: absolute;
+  top: var(--feed-media-top);
+  left: 0;
+  width: 100%;
+  height: var(--feed-band-h);
+  background-size: cover !important;
+  background-position: center !important;
+  filter: none !important;
+  transform: none !important;
+  opacity: 1;
+}
+
+html.m-mode .feedv__waiting {
+  position: absolute;
+  top: var(--feed-media-top);
+  left: 0;
+  right: 0;
+  height: var(--feed-band-h);
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.8);
+  z-index: 3;
+}
+
+/* 上下黑边是设计的一部分：不压整屏渐变，避免把黑边涂灰 */
+html.m-mode .feedv__shade,
+html.m-mode .feedv__slide::before,
+html.m-mode .feedv__slide::after {
+  display: none !important;
+}
+
+/* ---------------- 左下三层：弹幕/榜单 → @来源 → 一行简介 ---------------- */
+
+html.m-mode .feedv__m-stage {
+  position: absolute;
+  z-index: 6;
+  left: 14px;
+  right: 64px;
+  top: calc(var(--feed-media-top) + var(--feed-band-h) + 16px);
+  display: block;
+  color: #fff;
+  pointer-events: none;
+}
+
+html.m-mode .feedv__m-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+html.m-mode .feedv__dm {
+  pointer-events: auto;
+  flex: none;
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--m-font);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+html.m-mode .feedv__dm[data-on='true'] {
+  border-color: color-mix(in srgb, var(--m-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--m-accent) 16%, transparent);
+  color: color-mix(in srgb, var(--m-accent) 70%, #fff);
+}
+
+html.m-mode .feedv__rank {
+  pointer-events: auto;
+  min-width: 0;
+  max-width: min(64vw, 280px);
+  height: 28px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: linear-gradient(96deg, rgba(255, 176, 64, 0.92), rgba(255, 128, 84, 0.78) 46%, rgba(96, 158, 150, 0.72));
+  color: #fff;
+  font-family: var(--m-font);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+html.m-mode .feedv__rank-trophy {
+  flex: none;
+  font-size: 12px;
+  line-height: 1;
+}
+
+html.m-mode .feedv__rank-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.m-mode .feedv__rank-arrow {
+  flex: none;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+html.m-mode .feedv__m-author {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+html.m-mode .feedv__m-introrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+html.m-mode .feedv__m-intro {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.74);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+html.m-mode .feedv__m-more {
+  pointer-events: auto;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--m-font);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------------- 右侧四个操作：无底板、无描边，图标 23dp、数字 10sp ---------------- */
+
+html.m-mode .feedv__rail {
+  right: 10px;
+  left: auto;
+  top: auto;
+  bottom: calc(var(--feed-bottom) + var(--feed-watch-h) + 10px);
+  gap: 10px;
+  z-index: 6;
+}
+
+html.m-mode .feedv__rail-btn {
+  height: 46px;
+  gap: 4px;
+  justify-content: center;
+}
+
+html.m-mode .feedv__rail-btn > span:not(.feedv__rail-icon) {
+  display: none;
+}
+
+html.m-mode .feedv__rail-btn:nth-child(5),
+html.m-mode .feedv__rail-btn:nth-child(6) {
+  display: none;
+}
+
+html.m-mode .feedv__rail-icon {
+  width: 30px;
+  height: 30px;
+  font-size: 23px;
+  line-height: 30px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+
+html.m-mode .feedv__rail-icon svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+}
+
+html.m-mode .feedv__rail-num {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* ---------------- 剧集条：通栏 48dp，点击进详情 ---------------- */
+
+html.m-mode .feedv__watch {
+  position: absolute;
+  z-index: 7;
+  left: 12px;
+  right: 12px;
+  bottom: var(--feed-bottom);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--feed-watch-h);
+  padding: 0 14px 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #171615;
+  color: #fff;
+  font-family: var(--m-font);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  transition: transform 0.18s var(--m-ease), background 0.18s var(--m-ease);
+}
+
+html.m-mode .feedv__watch:active {
+  transform: scale(0.985);
+  background: #201e1d;
+}
+
+html.m-mode .feedv__watch-play {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #fff;
+  color: #111;
+  font-size: 10px;
+  line-height: 1;
+}
+
+html.m-mode .feedv__watch-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.m-mode .feedv__watch-arrow {
+  flex: none;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 闲置隐藏只收顶栏：右侧操作与信息是内容，保持常驻 */
+html.m-mode .feedv[data-chrome-hidden='true'] .feedv__rail {
+  opacity: 1 !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+html.m-mode .feedv .danmaku-layer {
+  top: calc(var(--feed-media-top) + 6px) !important;
+  height: calc(var(--feed-band-h) - 24px) !important;
+  overflow: hidden;
+  z-index: 4 !important;
+}
+
+/* ---------------- 首屏骨架：16:9 画框 + 两行信息占位，顶部频道常显 ---------------- */
+
+.feedv__sk-block {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07));
+  background-size: 200% 100%;
+  animation: feedv-sk-shimmer 1.35s linear infinite;
+}
+
+@keyframes feedv-sk-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+html.m-mode .feedv__sk {
+  position: absolute;
+  inset: 0;
+}
+
+html.m-mode .feedv__sk-media {
+  position: absolute;
+  top: var(--feed-media-top);
+  left: 0;
+  right: 0;
+  height: var(--feed-band-h);
+}
+
+html.m-mode .feedv__sk-line {
+  position: absolute;
+  left: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+html.m-mode .feedv__sk-line--1 {
+  top: calc(var(--feed-media-top) + var(--feed-band-h) + 22px);
+  width: 46%;
+}
+
+html.m-mode .feedv__sk-line--2 {
+  top: calc(var(--feed-media-top) + var(--feed-band-h) + 46px);
+  width: 68%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedv__sk-block {
+    animation: none;
+  }
+}
+
+/* 推荐流不挂完整控制条：选集/清晰度/发弹幕会压住三层信息。
+   点画面暂停、拖进度这类手势仍由播放器接管；全屏时再把控制条放回来。 */
+html.m-mode .feedv .xgplayer-controls {
+  display: none !important;
+}
+
+html.m-mode .feedv .xgplayer.xgplayer-is-fullscreen .xgplayer-controls,
+html.m-mode .feedv .xgplayer.xgplayer-cssfullscreen .xgplayer-controls,
+html.m-mode .feedv .xgplayer:fullscreen .xgplayer-controls {
+  display: flex !important;
+  bottom: 0 !important;
+}
+
+@media (max-width: 360px) {
+  html.m-mode .feedv__m-stage {
+    right: 58px;
+  }
+
+  html.m-mode .feedv__rail {
+    right: 6px;
+    gap: 10px;
+  }
+
+  html.m-mode .feedv__rail-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 21px;
+    line-height: 28px;
+  }
+
+  html.m-mode .feedv__watch {
+    left: 10px;
+    right: 10px;
+    font-size: 12.5px;
+    gap: 8px;
   }
 }

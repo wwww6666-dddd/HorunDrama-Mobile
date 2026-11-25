@@ -495,6 +495,39 @@ export function Feed(): JSX.Element {
     setTab(next);
   };
 
+  // 手机端首屏：16:9 画框 + 两行信息骨架，顶部 Tab 始终可见（官方同款）
+  if (mob !== null && loading && items.length === 0 && !loadedOnce) {
+    return (
+      <div className="feedv feedv--loading">
+        <div className="m-feedtop">
+          <button type="button" className="m-feedtop__btn" aria-label="快捷入口" onClick={() => setMenuOpen(true)}>
+            <MenuGlyph />
+          </button>
+          <button type="button" className="m-feedtop__btn" aria-label="搜索" onClick={() => mob.go('search')}>
+            <SearchGlyph />
+          </button>
+        </div>
+        <div className="feedv__sk" aria-hidden="true">
+          <div className="feedv__sk-media feedv__sk-block" />
+          <div className="feedv__sk-line feedv__sk-line--1 feedv__sk-block" />
+          <div className="feedv__sk-line feedv__sk-line--2 feedv__sk-block" />
+        </div>
+        <div className="feedv__tabs">
+          {TABS.map((entry) => (
+            <button
+              key={entry.tab}
+              className="feedv__tab"
+              data-active={entry.tab === tab}
+              onClick={() => handleTab(entry.tab)}
+            >
+              {entry.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (loading && items.length === 0 && !loadedOnce) {
     return (
       <div className="feedv feedv--state">
@@ -571,6 +604,7 @@ export function Feed(): JSX.Element {
             <FeedSlide
               key={item.seriesId}
               item={item}
+              kind={tab === 'anime' ? '漫剧' : tab === 'live' ? '真人剧' : (item.tags[0] ?? '短剧')}
               active={i === index}
               rate={rate}
               playPrefs={playPrefs}
@@ -782,6 +816,8 @@ export function Feed(): JSX.Element {
 
 interface SlideProps {
   item: FeedItem;
+  /** 剧集条前缀：漫剧 / 真人剧 / 标签首项 / 短剧 */
+  kind: string;
   active: boolean;
   rate: number;
   playPrefs: { autoPlayNext: boolean; skipIntroSec: number; skipOutroSec: number };
@@ -800,6 +836,7 @@ interface SlideProps {
 
 function FeedSlide({
   item,
+  kind,
   active,
   rate,
   playPrefs,
@@ -1203,24 +1240,25 @@ function FeedSlide({
           </div>
         )}
 
-        <div className="feedv__rail">
-        <button className="feedv__rail-btn" onClick={() => void toggleLike()} title={liked ? '取消点赞' : '点赞'}>
-          <span className="feedv__rail-icon" data-on={liked}>
-            {liked ? '♥' : '♡'}
+      {/* 右侧操作：顺序对齐官方「收藏 / 评论 / 点赞 / 分享」 */}
+      <div className="feedv__rail">
+        <button className="feedv__rail-btn" onClick={() => void toggleFavorite()} title={favorited ? '取消收藏' : '收藏'}>
+          <span className="feedv__rail-icon" data-on={favorited}>
+            {favorited ? '★' : '☆'}
           </span>
-          <span>点赞</span>
-          <b className="feedv__rail-num">{fmtCount(digg)}</b>
+          <span>收藏</span>
         </button>
         <button className="feedv__rail-btn" onClick={onComments} title="评论">
           <span className="feedv__rail-icon"><RailCommentIcon /></span>
           <span>评论</span>
           <b className="feedv__rail-num">{fmtCount(item.commentCount)}</b>
         </button>
-        <button className="feedv__rail-btn" onClick={() => void toggleFavorite()} title={favorited ? '取消收藏' : '收藏'}>
-          <span className="feedv__rail-icon" data-on={favorited}>
-            {favorited ? '★' : '☆'}
+        <button className="feedv__rail-btn" onClick={() => void toggleLike()} title={liked ? '取消点赞' : '点赞'}>
+          <span className="feedv__rail-icon" data-on={liked}>
+            {liked ? '♥' : '♡'}
           </span>
-          <span>收藏</span>
+          <span>点赞</span>
+          <b className="feedv__rail-num">{fmtCount(digg)}</b>
         </button>
         <button className="feedv__rail-btn" onClick={() => void share()} title="分享">
           <span className="feedv__rail-icon">↗</span>
@@ -1236,6 +1274,7 @@ function FeedSlide({
         </button>
       </div>
 
+      {mob === null && (
       <div className="feedv__info">
         <div className="feedv__badges">
           <span className="feedv__badge">第 {item.episodeNo} 集</span>
@@ -1273,11 +1312,44 @@ function FeedSlide({
           </button>
         </div>
         </div>
+      )}
+
+      {/* 手机端左下三层：弹幕/榜单 → @来源 → 一行简介（展开看全稿） */}
+      {mob !== null && (
+        <div className="feedv__m-stage">
+          <div className="feedv__m-top">
+            <button
+              type="button"
+              className="feedv__dm"
+              data-on={danmakuPrefs.enabled}
+              onClick={() => patchDanmaku({ enabled: !danmakuPrefs.enabled })}
+              aria-label={danmakuPrefs.enabled ? '关闭弹幕' : '打开弹幕'}
+            >
+              弹
+            </button>
+            {item.heatText !== '' && (
+              <button type="button" className="feedv__rank" onClick={() => mob.go('rank')}>
+                <span className="feedv__rank-trophy">🏆</span>
+                <span className="feedv__rank-text">热度 {item.heatText}</span>
+                <span className="feedv__rank-arrow">›</span>
+              </button>
+            )}
+          </div>
+          <p className="feedv__m-author">@红果短剧</p>
+          <div className="feedv__m-introrow">
+            <p className="feedv__m-intro">{item.intro !== '' ? item.intro : item.title}</p>
+            <button type="button" className="feedv__m-more" onClick={() => setIntroOpen(true)}>
+              展开
+            </button>
+          </div>
+        </div>
+      )}
 
         <button className="feedv__watch" type="button" onClick={() => openDetail(item.seriesId)}>
           <span className="feedv__watch-play">▶</span>
           <span className="feedv__watch-text">
-            {item.episodeCount > 0 ? `观看完整漫剧 · 全 ${item.episodeCount} 集` : '观看完整漫剧'}
+            {kind} · {item.title}
+            {item.episodeCount > 0 ? ` · 全 ${item.episodeCount} 集` : ''}
           </span>
           <span className="feedv__watch-arrow">›</span>
         </button>
