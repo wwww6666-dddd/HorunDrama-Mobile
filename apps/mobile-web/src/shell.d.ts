@@ -60,6 +60,14 @@ export interface HorunAndroidBridge {
   toast: (message: string) => void;
   /** 系统栏配色：剧场/我的 light，推荐/播放 dark */
   setBars?: (mode: 'light' | 'dark') => void;
+  /** 系统字号缩放：90~125（WebView textZoom） */
+  setFontScale?: (percent: number) => void;
+  /** 下载更新 APK：url + 文件名 + sha256(可空) + 线程数；内部四线程 Range 分段 */
+  downloadUpdate?: (url: string, fileName: string, sha256: string, threads: number) => void;
+  /** 更新状态：idle | downloading | downloaded | failed */
+  getUpdateState?: () => string;
+  /** 安装已经下载好的 APK */
+  installUpdate?: () => void;
 }
 
 declare global {

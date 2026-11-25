@@ -13,6 +13,7 @@ import { useTilt } from '../hooks/useTilt.ts';
 import { readDanmakuPrefs, writeDanmakuPrefs, type DanmakuPrefs } from '../settings/danmaku.ts';
 import type Player from 'xgplayer';
 import { IconDownload } from '../ui/icons.tsx';
+import { readSnapshot, writeSnapshot } from '../mobile/snapshot.ts';
 
 function fmtCount(n: number | undefined): string {
   if (n === undefined || n <= 0) return '';
@@ -118,7 +119,7 @@ export function Feed(): JSX.Element {
   /** 手机壳里才有的顶栏入口（汉堡 + 搜索）；桌面端不渲染 */
   const mob = useMaybeNav();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [items, setItems] = useState<FeedItem[]>([]);
+  const [items, setItems] = useState<FeedItem[]>(() => readSnapshot<FeedItem[]>('feed:recommend') ?? []);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadedOnce, setLoadedOnce] = useState(false);
@@ -425,6 +426,7 @@ export function Feed(): JSX.Element {
           const seen = new Set(prev.map((item) => item.seriesId));
           return [...prev, ...res.items.filter((item) => !seen.has(item.seriesId))];
         });
+        if (reset) writeSnapshot(`feed:${tab}`, res.items);
         if (reset) {
           setIndex(0);
           window.requestAnimationFrame(() => {
@@ -448,8 +450,10 @@ export function Feed(): JSX.Element {
     setIndex(0);
     cursorRef.current = '';
     scrollerRef.current?.scrollTo({ top: 0 });
+    const cached = readSnapshot<FeedItem[]>(`feed:${tab}`);
+    if (cached !== null) setItems(cached);
     void load(true, false);
-  }, [load]);
+  }, [load, tab]);
 
   // 连续刷集不等待：在这一条停留 2.5s 后，把**下一条**的 360p 地址预热好，
   // 高清也在后台起任务（和电脑端播放页 25s 时的 prewarm + startUpgrade 同一思路）。

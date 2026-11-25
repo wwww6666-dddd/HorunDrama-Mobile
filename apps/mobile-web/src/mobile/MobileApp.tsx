@@ -14,7 +14,8 @@ import { Me } from './pages/Me.tsx';
 import { MeSettings } from './pages/MeSettings.tsx';
 import { Category, Downloads, NewReleases } from './pages/Misc.tsx';
 import { Rank } from './pages/Rank.tsx';
-import { Welfare, welfareUnclaimed } from './pages/Welfare.tsx';
+import { useApp } from '../store.ts';
+import { APP_VERSION, checkMobileUpdate, compareVersion } from '../app-info.ts';
 
 const TAB_ROUTES: MRoute[] = TABS.map((t) => t.route);
 
@@ -23,7 +24,6 @@ const PAGES: Record<MRoute, () => JSX.Element> = {
   feed: Feed,
   rank: Rank,
   library: Library,
-  welfare: Welfare,
   me: Me,
   settings: MeSettings,
   search: Search,
@@ -38,7 +38,6 @@ const LABEL: Record<MRoute, string> = {
   feed: '推荐',
   rank: '榜单',
   library: '追剧',
-  welfare: '福利',
   me: '我的',
   settings: '设置',
   search: '搜索',
@@ -49,8 +48,8 @@ const LABEL: Record<MRoute, string> = {
 };
 
 /**
- * 底栏：4 个纯文字 Tab（阶段 A 口径）。
- * 不做图标、不做药丸滑块——选中态只靠字重 + 1px 下划线，跟官方一致。
+ * 底栏：3 个纯文字 Tab（首页 / 剧场 / 我的），对齐官方新版。
+ * 不做图标、不做药丸滑块——选中态只靠字重 + 1px 下划线。
  */
 function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }): JSX.Element {
   return (
@@ -68,7 +67,6 @@ function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }
           }}
         >
           {tab.label}
-          {tab.route === 'welfare' && route !== 'welfare' && welfareUnclaimed() && <i className="m-tabbar__dot" aria-hidden="true" />}
         </button>
       ))}
     </nav>
@@ -76,6 +74,7 @@ function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }
 }
 
 export function MobileApp(): JSX.Element {
+  const theme = useApp((s) => s.theme);
   const [route, setRoute] = useState<MRoute>(() => parseRoute(location.hash));
   const [playRoute, setPlayRoute] = useState<PlayRoute | null>(() => parsePlay(location.hash));
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -95,6 +94,31 @@ export function MobileApp(): JSX.Element {
     setRoute(parseRoute(location.hash));
   }, []);
 
+  // APK 内每天自动检查一次更新：发现新版就后台四线程下载，完成后走系统安装器。
+  // 浏览器里没有原桥，不触发；设置里可以关掉（horun-auto-update=0）。
+  useEffect(() => {
+    const native = window.HorunAndroid;
+    if (native?.downloadUpdate === undefined) return;
+    if (localStorage.getItem('horun-auto-update') === '0') return;
+    const last = Number(localStorage.getItem('horun-auto-check') ?? '0');
+    if (Number.isFinite(last) && Date.now() - last < 24 * 60 * 60 * 1000) return;
+    const timer = window.setTimeout(() => {
+      localStorage.setItem('horun-auto-check', String(Date.now()));
+      void checkMobileUpdate()
+        .then((info) => {
+          if (compareVersion(info.latest, APP_VERSION) <= 0) return;
+          if (localStorage.getItem('horun-update-tried') === info.latest) return;
+          const asset = info.assets.find((item) => item.name.toLowerCase().endsWith('.apk'));
+          if (asset === undefined) return;
+          localStorage.setItem('horun-update-tried', info.latest);
+          native.downloadUpdate?.(asset.url, asset.name || `HorunDrama-${info.latest}.apk`, asset.digest, 4);
+          native.toast?.(`发现新版本 v${info.latest}，正在后台下载更新`);
+        })
+        .catch(() => undefined);
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     sync();
     window.addEventListener('popstate', sync);
@@ -105,11 +129,11 @@ export function MobileApp(): JSX.Element {
     };
   }, [sync]);
 
-  // 系统栏跟着页面走：官方推荐/播放是黑底白字，剧场/我的/搜索是白底黑字
+  // 系统栏跟着页面和主题走：推荐/播放/深色页是黑底白字，浅色页是白底黑字
   useEffect(() => {
-    const dark = playRoute !== null || route === 'feed';
+    const dark = playRoute !== null || route === 'feed' || theme === 'dark';
     window.HorunAndroid?.setBars?.(dark ? 'dark' : 'light');
-  }, [route, playRoute, detailId]);
+  }, [route, playRoute, detailId, theme]);
 
   const go = useCallback((next: MRoute) => {
     const hash = hashOfRoute(next);

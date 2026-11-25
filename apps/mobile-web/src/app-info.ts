@@ -14,6 +14,12 @@ export const APP_AUTHOR = 'Horun';
 
 /** GitHub 仓库（owner/name）—— 更新检查、反馈、源码地址都指向这里 */
 export const GITHUB_REPO = 'wwww6666-dddd/HorunDrama';
+/** 手机端单独一个仓库：只有手机代码和 APK，桌面端更新不受影响 */
+export const MOBILE_GITHUB_REPO = 'wwww6666-dddd/HorunDrama-Mobile';
+export const MOBILE_GITHUB_URL = `https://github.com/${MOBILE_GITHUB_REPO}`;
+export const MOBILE_FEEDBACK_URL = `${MOBILE_GITHUB_URL}/issues/new`;
+export const MOBILE_RELEASES_URL = `${MOBILE_GITHUB_URL}/releases`;
+export const MOBILE_UPDATE_API_URL = `https://api.github.com/repos/${MOBILE_GITHUB_REPO}/releases/latest`;
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 /** 反馈（新建 issue） */
 export const FEEDBACK_URL = `${GITHUB_URL}/issues/new`;
@@ -106,7 +112,56 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 }
 
 /**
- * 复制文本到剪贴板。
+ * 手机端单独走 MOBILE_UPDATE_API_URL；桌面端的 checkUpdate 不动。
+ */
+export async function checkMobileUpdate(): Promise<UpdateInfo> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(MOBILE_UPDATE_API_URL, {
+      signal: controller.signal,
+      headers: { accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) {
+      if (res.status === 404) throw new Error('手机仓库还没有发布 release');
+      throw new Error(`GitHub 返回 ${res.status}`);
+    }
+    const json = (await res.json()) as {
+      tag_name?: string;
+      html_url?: string;
+      name?: string;
+      published_at?: string;
+      body?: string;
+      assets?: Array<{
+        name?: string;
+        browser_download_url?: string;
+        size?: number;
+        digest?: string;
+        content_type?: string;
+      }>;
+    };
+    return {
+      latest: (json.tag_name ?? '').replace(/^v/i, ''),
+      url: json.html_url ?? MOBILE_RELEASES_URL,
+      name: json.name ?? '',
+      publishedAt: json.published_at ?? '',
+      notes: json.body ?? '',
+      assets: (json.assets ?? [])
+        .filter((a) => typeof a.browser_download_url === 'string' && a.browser_download_url !== '')
+        .map((a) => ({
+          name: a.name ?? '',
+          url: a.browser_download_url ?? '',
+          size: typeof a.size === 'number' ? a.size : 0,
+          digest: a.digest ?? '',
+          contentType: a.content_type ?? '',
+        })),
+    };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/**
  *
  * 优先走 Electron 的 clipboard（main 进程，必定可用 —— 无焦点窗口/权限策略下
  * 渲染进程的 navigator.clipboard 会被拒）；浏览器里退回 navigator.clipboard。

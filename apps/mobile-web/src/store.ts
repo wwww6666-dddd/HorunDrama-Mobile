@@ -16,12 +16,14 @@ export type View =
   | 'settings';
 
 export type Theme = 'dark' | 'light';
-export type Accent = 'ember' | 'jade' | 'violet' | 'azure';
+export type ThemeMode = 'system' | Theme;
+export type Accent = 'ember' | 'crimson' | 'jade' | 'violet' | 'azure' | 'gold';
 export type LibraryTab = 'fav' | 'history' | 'likes' | 'follow';
 
 interface AppState {
   view: View;
   theme: Theme;
+  themeMode: ThemeMode;
   accent: Accent;
   /** 新核心连上了没有：null=未知 */
   coreOk: boolean | null;
@@ -56,6 +58,7 @@ interface AppState {
   libraryTab: LibraryTab;
   setLibraryTab: (tab: LibraryTab) => void;
   setTheme: (theme: Theme) => void;
+  setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
   setAccent: (accent: Accent) => void;
   setCoreOk: (ok: boolean) => void;
@@ -64,23 +67,45 @@ interface AppState {
   closeDetail: () => void;
 }
 
-function readTheme(): Theme {
+function systemTheme(): Theme {
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** 迁移：老用户之前手动存过 horun-theme，就当成固定深浅；否则默认跟随系统。 */
+function readThemeMode(): ThemeMode {
+  const savedMode = localStorage.getItem('horun-theme-mode');
+  if (savedMode === 'dark' || savedMode === 'light' || savedMode === 'system') return savedMode;
   const saved = localStorage.getItem('horun-theme');
   if (saved === 'dark' || saved === 'light') return saved;
-  // 手机端默认深色：和红果/短剧的沉浸看片场景一致，首屏不会闪白
-  return 'dark';
+  return 'system';
+}
+
+function resolveTheme(mode: ThemeMode): Theme {
+  return mode === 'system' ? systemTheme() : mode;
 }
 
 function readAccent(): Accent {
   const saved = localStorage.getItem('horun-accent');
-  if (saved === 'ember' || saved === 'jade' || saved === 'violet' || saved === 'azure') return saved;
+  if (saved === 'ember' || saved === 'crimson' || saved === 'jade' || saved === 'violet' || saved === 'azure' || saved === 'gold') return saved;
   return 'ember';
 }
 
-const initialTheme = readTheme();
+const initialThemeMode = readThemeMode();
+const initialTheme = resolveTheme(initialThemeMode);
 const initialAccent = readAccent();
 document.documentElement.dataset.theme = initialTheme;
 document.documentElement.dataset.accent = initialAccent;
+
+/** 跟随系统时，系统切深浅要实时生效（Android WebView / 桌面浏览器都支持）。 */
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: light)');
+systemThemeQuery.addEventListener('change', () => {
+  const mode = (localStorage.getItem('horun-theme-mode') as ThemeMode | null) ?? initialThemeMode;
+  if (mode !== 'system') return;
+  const next = systemTheme();
+  document.documentElement.dataset.theme = next;
+  useApp.setState({ theme: next });
+  void window.yimu?.setTheme?.(next).catch(() => undefined);
+});
 
 /** 桌面壳里才有的东西：右上角窗口按钮的样式与拖动区（见 styles.css）。 */
 function syncShell(): void {
@@ -92,6 +117,7 @@ export const useApp = create<AppState>((set, get) => ({
   // App 的 hash 校正 effect 又把地址改回 #/，用户看到的就是"深链失效/后退到推荐页"。
   view: parseHash(location.hash),
   theme: initialTheme,
+  themeMode: initialThemeMode,
   accent: initialAccent,
   coreOk: null,
   account: null,
@@ -106,12 +132,17 @@ export const useApp = create<AppState>((set, get) => ({
   setView: (view) => set({ view }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setTheme: (theme) => {
-    localStorage.setItem('horun-theme', theme);
+    get().setThemeMode(theme);
+  },
+  setThemeMode: (themeMode) => {
+    const theme = resolveTheme(themeMode);
+    localStorage.setItem('horun-theme-mode', themeMode);
+    if (themeMode !== 'system') localStorage.setItem('horun-theme', theme);
     document.documentElement.dataset.theme = theme;
     syncShell();
     // Win11 无边框窗口的 DWM 边框颜色跟 nativeTheme 走：不同步会留一条白边
     void window.yimu?.setTheme?.(theme).catch(() => undefined);
-    set({ theme });
+    set({ theme, themeMode });
   },
   toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
   setAccent: (accent) => {

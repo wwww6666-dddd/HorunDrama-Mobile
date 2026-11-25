@@ -25,7 +25,7 @@ import { feedPage, type FeedTab } from '../sources/feed.ts';
 import { newReleasesPage } from '../sources/newReleases.ts';
 import { fetchImage } from '../media/images.ts';
 import { clearImageCache, imageCacheStats } from '../media/images.ts';
-import { clearMediaCache, mediaCacheStats } from '../media/transcode.ts';
+import { clearMediaCache, mediaCacheStats, pruneMediaCache } from '../media/transcode.ts';
 import { getSettings, updateSettings } from '../store/settings.ts';
 import { getJob, jobView, startEpisode, startUpgradeJob } from '../media/jobs.ts';
 import { streamLiveMp4 } from '../media/live.ts';
@@ -1024,7 +1024,7 @@ export function registerRoutes(router: Router): void {
       mediaCacheDir?: string;
       mediaCacheMB?: number;
       downloadDir?: string;
-      defaultQuality?: 'auto' | '480p' | '720p' | '1080p';
+      defaultQuality?: 'auto' | 'smooth' | '480p' | '720p' | '1080p';
       downloadConcurrency?: number;
       autoPlayNext?: boolean;
       defaultSpeed?: number;
@@ -1033,11 +1033,18 @@ export function registerRoutes(router: Router): void {
       notifyNewEpisodes?: boolean;
       autoSyncAccount?: boolean;
       enhanceVideo?: 'off' | 'standard' | 'strong';
+      preloadCount?: number;
     } = {};
     if (typeof body.mediaCacheDir === 'string') patch.mediaCacheDir = body.mediaCacheDir;
     if (typeof body.mediaCacheMB === 'number') patch.mediaCacheMB = body.mediaCacheMB;
     if (typeof body.downloadDir === 'string') patch.downloadDir = body.downloadDir;
-    if (body.defaultQuality === 'auto' || body.defaultQuality === '480p' || body.defaultQuality === '720p' || body.defaultQuality === '1080p') {
+    if (
+      body.defaultQuality === 'auto' ||
+      body.defaultQuality === 'smooth' ||
+      body.defaultQuality === '480p' ||
+      body.defaultQuality === '720p' ||
+      body.defaultQuality === '1080p'
+    ) {
       patch.defaultQuality = body.defaultQuality;
     }
     if (typeof body.downloadConcurrency === 'number') patch.downloadConcurrency = body.downloadConcurrency;
@@ -1047,10 +1054,16 @@ export function registerRoutes(router: Router): void {
     if (typeof body.skipOutroSec === 'number') patch.skipOutroSec = body.skipOutroSec;
     if (typeof body.notifyNewEpisodes === 'boolean') patch.notifyNewEpisodes = body.notifyNewEpisodes;
     if (typeof body.autoSyncAccount === 'boolean') patch.autoSyncAccount = body.autoSyncAccount;
+    if (typeof body.preloadCount === 'number') patch.preloadCount = Math.max(0, Math.min(20, Math.round(body.preloadCount)));
     if (body.enhanceVideo === 'off' || body.enhanceVideo === 'standard' || body.enhanceVideo === 'strong') {
       patch.enhanceVideo = body.enhanceVideo;
     }
-    ok(res, updateSettings(patch));
+    const next = updateSettings(patch);
+    // 用户把缓存上限调小后立刻按新上限清一次，不等下一集转码
+    if (typeof patch.mediaCacheMB === 'number') {
+      void pruneMediaCache(Math.max(0, patch.mediaCacheMB) * 1024 * 1024).catch(() => undefined);
+    }
+    ok(res, next);
   });
 
   router.get('/api/cache', async ({ res }: Ctx) => {

@@ -21,6 +21,7 @@
   --m-text-2: rgba(246, 241, 234, 0.62);
   --m-text-3: rgba(246, 241, 234, 0.4);
   --m-accent: var(--ember, #ff5a37);
+  --m-accent-soft: color-mix(in srgb, var(--m-accent) 16%, transparent);
   --m-safe-top: env(safe-area-inset-top, 0px);
   --m-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m-spring: cubic-bezier(0.32, 1.36, 0.42, 1);
@@ -1862,7 +1863,7 @@ html.m-mode * {
   height: calc(var(--m-tabbar-h) + var(--m-safe-bottom));
   padding: 0 6px var(--m-safe-bottom);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-radius: 0;
   border: 0;
   border-top: 1px solid var(--m-line-soft);
@@ -4886,14 +4887,15 @@ html.m-mode .m-app[data-route='home'] {
   }
 
   .ms-seg {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
 
   .ms-seg button {
+    flex: 1 1 56px;
     height: 30px;
-    padding: 0;
+    padding: 0 6px;
     border: 1px solid transparent;
     border-radius: 8px;
     background: #f4f4f6;
@@ -4902,9 +4904,9 @@ html.m-mode .m-app[data-route='home'] {
   }
 
   .ms-seg button[data-active='true'] {
-    border-color: #ffd8c7;
-    background: #fff1ea;
-    color: #ff5a2e;
+    border-color: var(--m-accent);
+    background: var(--m-accent-soft);
+    color: var(--m-accent);
     font-weight: 700;
   }
 
@@ -6265,3 +6267,378 @@ html.m-mode .m-app .mt-act[data-kind='reserve'] .mt-act__icon {
   background: #ffb020;
 }
 
+
+/* ================= 2026-11 整改：手机推荐流改为官方满屏 =================
+   官方手机端（1080×2400 实拍）推荐流视频是整屏铺满，只有平板才做 16:9 居中；
+   之前统一按 16:9 处理，手机上上下两块大黑边，和官方差得很远。 */
+@media (max-width: 599px) {
+  html.m-mode .feedv__frame video {
+    top: 0 !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+
+  html.m-mode .feedv__poster {
+    top: 0;
+    height: 100%;
+    background-position: center;
+  }
+
+  html.m-mode .feedv__waiting {
+    top: 0;
+    height: 100%;
+  }
+
+  html.m-mode .feedv__shade,
+  html.m-mode .feedv__slide::before,
+  html.m-mode .feedv__slide::after {
+    display: block !important;
+  }
+
+  /* 满屏视频上，底部的信息层要压一层渐变，保证白字可读 */
+  html.m-mode .feedv__slide::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 42%;
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72));
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* 官方手机右侧操作栏在画面中下部，不贴屏幕底 */
+  html.m-mode .feedv__m-rail,
+  html.m-mode .feedv__rail {
+    bottom: calc(var(--feed-bottom) + var(--feed-watch-h) + 44px);
+  }
+}
+
+/* 平板官方剧场是 3 列瀑布；手机保持 2 列 */
+.mt-waterfall[data-cols='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mt-more {
+  padding: 18px 0 28px;
+  color: var(--m-text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 剧场深色：不再整页写死 #f5f5f6 */
+:root[data-theme='dark'] .m-app[data-route='home'],
+:root[data-theme='dark'] .m-app[data-route='home'] .m-scroll {
+  background: var(--m-bg) !important;
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='home'] .m-tabbar {
+  background: var(--m-bg-raise) !important;
+  border-top-color: var(--m-line) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='home'] .m-tabbar__item {
+  color: var(--m-text-3) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='home'] .m-tabbar__item[data-active='true'] {
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='home'] .m-tabbar__item[data-active='true']::after {
+  background: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .mt-search__box,
+:root[data-theme='dark'] .mt-act,
+:root[data-theme='dark'] .mt-card,
+:root[data-theme='dark'] .mt-cont,
+:root[data-theme='dark'] .mt-sk {
+  background: var(--m-bg-raise) !important;
+  border-color: var(--m-line) !important;
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .mt-search__box,
+:root[data-theme='dark'] .mt-search__scan,
+:root[data-theme='dark'] .mt-cat {
+  color: var(--m-text-2) !important;
+}
+
+:root[data-theme='dark'] .mt-cat[data-active='true'],
+:root[data-theme='dark'] .mt-card__title,
+:root[data-theme='dark'] .mt-cont__title,
+:root[data-theme='dark'] .mt-act {
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .mt-card__tag,
+:root[data-theme='dark'] .mt-cont__meta,
+:root[data-theme='dark'] .mt-more {
+  color: var(--m-text-3) !important;
+}
+
+/* 深色下卡片标签胶囊不能继续用浅色底，否则白底白字看不见 */
+:root[data-theme='dark'] .mt-card__tag {
+  background: color-mix(in srgb, var(--m-accent) 16%, transparent) !important;
+  color: var(--m-accent) !important;
+}
+
+/* 我的：平板官方是 4 列海报，手机 3 列 */
+@media (min-width: 600px) {
+  .mm-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* 浅色模式下底部抽屉跟官方一致用白底；深色仍用原来的暖黑玻璃 */
+:root[data-theme='light'] .m-sheet {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255, 255, 255, 0.98), rgba(247, 245, 243, 0.99) 62%),
+    #f7f5f3;
+  border-top: 1px solid rgba(20, 16, 14, 0.08);
+  box-shadow: 0 -18px 50px rgba(20, 16, 14, 0.18);
+}
+
+/* 我的页搜索：只搜本机历史/收藏/点赞/预约 */
+.mm-search {
+  padding: 4px 2px 24px;
+}
+
+.mm-search__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 21px;
+  background: var(--m-surface);
+  color: var(--m-text-2);
+}
+
+.mm-search__bar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--m-text);
+  font-family: var(--m-font);
+  font-size: 14px;
+}
+
+.mm-search__bar input::placeholder {
+  color: var(--m-text-3);
+}
+
+.mm-search__bar button {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--m-chip-bg);
+  color: var(--m-text-2);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mm-search__hint {
+  margin: 10px 2px 14px;
+  color: var(--m-text-3);
+  font-size: 11.5px;
+}
+
+.mm-search__grid {
+  gap: 18px 9px;
+}
+
+.mm-search__cell {
+  position: relative;
+  min-width: 0;
+}
+
+.mm-search__badge {
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  left: 5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--m-accent);
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 14px;
+}
+
+/* 我的深色：头图、快捷卡、资料库都跟主题走 */
+:root[data-theme='dark'] .m-app[data-route='me'],
+:root[data-theme='dark'] .m-app[data-route='me'] .m-scroll,
+:root[data-theme='dark'] .mm-me {
+  background: var(--m-bg) !important;
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='me'] .m-tabbar {
+  background: var(--m-bg-raise) !important;
+  border-top-color: var(--m-line) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='me'] .m-tabbar__item {
+  color: var(--m-text-3) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='me'] .m-tabbar__item[data-active='true'] {
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='me'] .m-tabbar__item[data-active='true']::after {
+  background: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .mm-hero {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(255, 90, 46, 0.12) 0%, rgba(255, 90, 46, 0) 58%),
+    radial-gradient(90% 74% at 100% 6%, rgba(47, 191, 155, 0.1) 0%, rgba(47, 191, 155, 0) 62%),
+    linear-gradient(180deg, #151210 0%, var(--m-bg) 100%);
+}
+
+:root[data-theme='dark'] .mm-moon,
+:root[data-theme='dark'] .mm-menu,
+:root[data-theme='dark'] .mm-info h1,
+:root[data-theme='dark'] .mm-quick__item,
+:root[data-theme='dark'] .mm-tab[data-active='true'],
+:root[data-theme='dark'] .mm-chips__tools button,
+:root[data-theme='dark'] .mm-tab-search,
+:root[data-theme='dark'] .mm-card h3 {
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .mm-info p,
+:root[data-theme='dark'] .mm-stat span,
+:root[data-theme='dark'] .mm-quick__item span,
+:root[data-theme='dark'] .mm-tab,
+:root[data-theme='dark'] .mm-card p {
+  color: var(--m-text-3) !important;
+}
+
+:root[data-theme='dark'] .mm-quick__item,
+:root[data-theme='dark'] .mm-library {
+  background: var(--m-bg-raise) !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark'] .mm-edit {
+  border-color: var(--m-line) !important;
+  background: var(--m-surface) !important;
+  color: var(--m-text-2) !important;
+}
+
+:root[data-theme='dark'] .mm-chips button {
+  background: var(--m-chip-bg) !important;
+  color: var(--m-text-2) !important;
+}
+
+:root[data-theme='dark'] .mm-chips button[data-active='true'] {
+  background: var(--m-accent-soft, rgba(255, 90, 46, 0.18)) !important;
+  color: var(--m-accent) !important;
+}
+
+:root[data-theme='dark'] .mm-poster {
+  background: var(--m-surface) !important;
+}
+
+/* 播放页手势提示：一行小字，不抢内容 */
+.play--mobile .mp-swipe-hint {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+/* 官方播放页的控制条位置：略往上提，给系统导航条留空间 */
+.play--mobile .mp-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+}
+
+
+/* 设置页新增：跳过片头/片尾输入、内联提示 */
+.ms-steppers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.ms-steppers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--m-text-2);
+  font-size: 12px;
+}
+
+.ms-steppers input {
+  width: 58px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--m-line);
+  border-radius: 8px;
+  background: var(--m-surface);
+  color: var(--m-text);
+  font-family: var(--m-font);
+  font-size: 13px;
+  text-align: center;
+}
+
+.ms-inline-note {
+  margin: 0;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--m-line-soft);
+  color: var(--m-accent);
+  font-size: 11.5px;
+  line-height: 17px;
+}
+
+/* 设置页深色 */
+:root[data-theme='dark'] .m-app[data-route='settings'],
+:root[data-theme='dark'] .m-app[data-route='settings'] .m-scroll {
+  background: var(--m-bg) !important;
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='settings'] .m-topbar {
+  background: var(--m-bg-raise) !important;
+  border-bottom-color: var(--m-line) !important;
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .m-app[data-route='settings'] .m-topbar__title,
+:root[data-theme='dark'] .m-app[data-route='settings'] .m-topbar__back {
+  color: var(--m-text) !important;
+}
+
+:root[data-theme='dark'] .ms-card {
+  background: var(--m-bg-raise) !important;
+}
+
+:root[data-theme='dark'] .ms-row {
+  color: var(--m-text) !important;
+  border-bottom-color: var(--m-line-soft) !important;
+}
+
+:root[data-theme='dark'] .ms-row__text span,
+:root[data-theme='dark'] .ms-title,
+:root[data-theme='dark'] .ms-foot {
+  color: var(--m-text-3) !important;
+}
+
+:root[data-theme='dark'] .ms-seg button {
+  background: var(--m-chip-bg) !important;
+  color: var(--m-text-2) !important;
+}
+
+:root[data-theme='dark'] .ms-pill {
+  background: var(--m-accent-soft) !important;
+  color: var(--m-accent) !important;
+}

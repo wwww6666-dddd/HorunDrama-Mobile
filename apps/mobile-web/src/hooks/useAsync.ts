@@ -11,8 +11,8 @@ export interface AsyncState<T> {
  * 最小的异步读取：带取消、只保留最后一次结果、避免 setState after unmount。
  * 不引入 react-query：这里只有"读一次/翻页"，够用且没有额外依赖。
  */
-export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, deps: unknown[]): AsyncState<T> {
-  const [data, setData] = useState<T | null>(null);
+export function useAsync<T>(load: (signal: AbortSignal) => Promise<T>, deps: unknown[], initial: T | null = null): AsyncState<T> {
+  const [data, setData] = useState<T | null>(initial);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);

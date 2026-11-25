@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { JSX } from 'react';
+import type { JSX, TouchEvent as ReactTouchEvent } from 'react';
 import type Player from 'xgplayer';
 import { api, type CommentItem, type CommentPage, type DanmakuItem, type PlayJob, type SeriesDetail } from '../api.ts';
 import { CAN_PLAY_HEVC } from '../media-support.ts';
@@ -11,6 +11,7 @@ import { DramaPlayer } from '../ui/DramaPlayer.tsx';
 import { useDanmaku } from '../hooks/useDanmaku.ts';
 import { readDanmakuPrefs, writeDanmakuPrefs, type DanmakuPrefs } from '../settings/danmaku.ts';
 import { IconBack, IconDownload } from '../ui/icons.tsx';
+import { readSnapshot, writeSnapshot } from '../mobile/snapshot.ts';
 
 interface PlayPrefs {
   autoPlayNext: boolean;
@@ -135,7 +136,9 @@ function MpIcon({
 
 export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boolean }): JSX.Element {
   const [job, setJob] = useState<PlayJob | null>(null);
-  const [detail, setDetail] = useState<SeriesDetail | null>(null);
+  const [detail, setDetail] = useState<SeriesDetail | null>(() =>
+    readSnapshot<SeriesDetail>(`series:${route.seriesId}`),
+  );
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -205,19 +208,27 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   const pageRef = useRef<HTMLDivElement | null>(null);
   /** 已经给哪一集预热过下一集 */
   const prewarmed = useRef('');
+  /** 自动连播防抖：timeupdate 和 ended 可能同时触发，一集只切一次 */
+  const autoNextGuard = useRef('');
+  /** 竖滑手势起点；只记录，不在 touchmove 里 preventDefault，避免打断播放器控件 */
+  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
 
   const flash = useCallback((text: string): void => {
     setNote(text);
     window.setTimeout(() => setNote(''), 2600);
   }, []);
 
-  // 详情
+  // 详情：先用本地快照铺界面（同一部剧再次进入不再空白等接口），再后台刷新
   useEffect(() => {
     let alive = true;
+    const cached = readSnapshot<SeriesDetail>(`series:${route.seriesId}`);
+    if (cached !== null) setDetail(cached);
     void api
       .series(route.seriesId)
       .then((d) => {
-        if (alive) setDetail(d);
+        if (!alive) return;
+        setDetail(d);
+        writeSnapshot(`series:${route.seriesId}`, d);
       })
       .catch(() => undefined);
     return () => {
@@ -277,6 +288,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     setUpgradeJobId('');
     setPlayingDefinition('');
     outroSkipped.current = false;
+    autoNextGuard.current = '';
     liveFallback.current = false;
 
     /** 换 job 时连"这是哪一集"一起记下来（只暂停不卸载，靠它判断旧画面还在不在） */
@@ -958,10 +970,68 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     wakeChrome();
   };
 
+  /** 控件区上的触摸不当成切集手势（选集条、右侧操作、顶栏、弹层） */
+  const isGestureIgnored = (target: EventTarget | null): boolean =>
+    target instanceof Element &&
+    target.closest(
+      '.mp-top,.mp-bottom,.mp-rail,.mp-menu,.mp-quality,.play__sheet,.play__sheet-mask,.play__comments,.play__rail,.play__top,.play__meta,.play__comments-mask',
+    ) !== null;
+
+  const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>): void => {
+    if (!mobile || event.touches.length !== 1 || isGestureIgnored(event.target)) {
+      swipeStart.current = null;
+      return;
+    }
+    const touch = event.touches[0]!;
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, at: Date.now() };
+  };
+
+  const onTouchEnd = (event: ReactTouchEvent<HTMLDivElement>): void => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!mobile || start === null || event.changedTouches.length !== 1) return;
+    const touch = event.changedTouches[0]!;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Date.now() - start.at > 900) return;
+    // 竖向位移至少 56dp，且明显大于横向，避免和进度条横滑/双击冲突
+    if (Math.abs(dy) < 56 || Math.abs(dy) < Math.abs(dx) * 1.3) return;
+    wakeChrome();
+    navigator.vibrate?.(8);
+    if (dy < 0) {
+      if (currentIndex >= episodeCount - 1 && episodeCount > 0) {
+        flash('已经是最后一集');
+        return;
+      }
+      neighbor(1);
+    } else {
+      if (currentIndex <= 0) {
+        flash('已经是第一集');
+        return;
+      }
+      neighbor(-1);
+    }
+  };
+
   const onTime = useCallback(
     (t: number, d: number): void => {
       setTime(t);
       if (d > 0) setDuration(d);
+      // 兜底自动连播：部分 WebView 在最后 0.3s 不派发 ended（或全屏时被吞），
+      // 这里用 timeupdate 再判一次；一集只切一次，避免和 onEnded 双跳。
+      if (
+        prefs?.autoPlayNext !== false &&
+        d > 3 &&
+        t >= d - 0.45 &&
+        autoNextGuard.current !== route.episodeId &&
+        detailRef.current !== null
+      ) {
+        autoNextGuard.current = route.episodeId;
+        switchingFrom.current = route.episodeId;
+        setSwitching(true);
+        neighbor(1);
+        return;
+      }
       // 播到 25 秒就把下一集的 360p 地址预热好（一集只有一次，成本极低）
       if (t > 25) {
         const d0 = detailRef.current;
@@ -989,6 +1059,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
         t >= d - outro
       ) {
         outroSkipped.current = true;
+        autoNextGuard.current = route.episodeId;
         neighbor(1);
       }
     },
@@ -1040,7 +1111,11 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       data-switching={switching || waiting}
       onMouseMove={wakeChrome}
       onClick={tapChrome}
-      onTouchStart={tapChrome}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={() => {
+        swipeStart.current = null;
+      }}
     >
       {readyUrl !== '' && startReady && (
         <DramaPlayer
@@ -1071,6 +1146,8 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
             // 只有设置里明确关了才不切；prefs 还没加载完（null）时按默认"开"处理，
             // 否则启动稍慢一点就会出现"播完了却停在重播"。
             if (prefs?.autoPlayNext === false) return;
+            if (autoNextGuard.current === route.episodeId) return;
+            autoNextGuard.current = route.episodeId;
             switchingFrom.current = route.episodeId;
             setSwitching(true);
             neighbor(1);
@@ -1286,7 +1363,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               )}
             </div>
             {introOpen && <p className="mp-intro">{detail?.drama.intro ?? ''}</p>}
-            <p className="mp-claim">ⓘ 作者声明：内容由AI生成</p>
+            <p className="mp-swipe-hint">上滑下一集 · 下滑上一集</p>
           </div>
 
           <div className="mp-bottom" data-hidden={!chromeVisible}>

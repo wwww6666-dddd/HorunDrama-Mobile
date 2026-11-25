@@ -142,6 +142,7 @@ public class MainActivity extends Activity {
         }
 
         web.addJavascriptInterface(new Bridge(), "HorunAndroid");
+        web.getSettings().setTextZoom(getSharedPreferences("horun", MODE_PRIVATE).getInt("fontScale", 100));
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -397,6 +398,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        UpdateManager.get(this).resumePendingInstall();
         if (web == null) return;
         applyBars(lightBars);
         if (NodeCore.isReady()) {
@@ -463,6 +465,33 @@ public class MainActivity extends Activity {
         public void setBars(String mode) {
             boolean light = "light".equals(mode);
             runOnUiThread(() -> applyBars(light));
+        }
+
+        /** 系统字号缩放（WebView textZoom），90~125，立即生效并持久化。 */
+        @JavascriptInterface
+        public void setFontScale(int percent) {
+            final int safe = Math.max(80, Math.min(150, percent));
+            runOnUiThread(() -> {
+                if (web == null) return;
+                web.getSettings().setTextZoom(safe);
+                getSharedPreferences("horun", MODE_PRIVATE).edit().putInt("fontScale", safe).apply();
+            });
+        }
+
+        /** 四线程 Range 分段下载 APK；URL 由网页从 GitHub release 里取。 */
+        @JavascriptInterface
+        public void downloadUpdate(String url, String fileName, String sha256, int threads) {
+            runOnUiThread(() -> UpdateManager.get(MainActivity.this).start(url, fileName, sha256, threads));
+        }
+
+        @JavascriptInterface
+        public String getUpdateState() {
+            return UpdateManager.get(MainActivity.this).getState();
+        }
+
+        @JavascriptInterface
+        public void installUpdate() {
+            runOnUiThread(() -> UpdateManager.get(MainActivity.this).install());
         }
     }
 }

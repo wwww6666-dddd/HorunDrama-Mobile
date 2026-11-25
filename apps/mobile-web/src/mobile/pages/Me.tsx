@@ -21,6 +21,8 @@ interface MeCard {
   episodeNo?: number;
   ratio?: number;
   updatedAt?: number;
+  /** 搜索结果里标记来源：历史/收藏/点赞/预约 */
+  source?: MeTab;
 }
 
 const TABS: Array<{ key: MeTab; label: string }> = [
@@ -95,18 +97,18 @@ function Cards({ tab, filter }: { tab: MeTab; filter: MeFilter }): JSX.Element {
   const { data, error, loading, reload } = useAsync<MeCard[]>(async (signal) => {
     if (tab === 'history') {
       const items = await api.continueWatching(60, signal);
-      return items.map((item) => toCard(item, 'history'));
+      return items.map((item) => ({ ...toCard(item, 'history'), source: 'history' as const }));
     }
     if (tab === 'fav') {
       const items = await api.favorites(signal);
-      return items.map((item) => toCard(item, 'fav'));
+      return items.map((item) => ({ ...toCard(item, 'fav'), source: 'fav' as const }));
     }
     if (tab === 'likes') {
       const items = await api.likes(signal);
-      return items.map((item) => toCard(item, 'likes'));
+      return items.map((item) => ({ ...toCard(item, 'likes'), source: 'likes' as const }));
     }
     const items = await api.reservations(signal);
-    return items.map((item) => toCard(item, 'reserve'));
+    return items.map((item) => ({ ...toCard(item, 'reserve'), source: 'reserve' as const }));
   }, [tab]);
 
   const rows = useMemo(() => {
@@ -194,6 +196,73 @@ function MeCardView({ row, tab }: { row: MeCard; tab: MeTab }): JSX.Element {
   );
 }
 
+function MeSearch({ open, onClose }: { open: boolean; onClose: () => void }): JSX.Element {
+  const [query, setQuery] = useState('');
+  const { data, loading, error } = useAsync<MeCard[]>(async (signal) => {
+    const [history, fav, likes, reserve] = await Promise.all([
+      api.continueWatching(120, signal),
+      api.favorites(signal),
+      api.likes(signal),
+      api.reservations(signal),
+    ]);
+    return [
+      ...history.map((item) => ({ ...toCard(item, 'history'), source: 'history' as const })),
+      ...fav.map((item) => ({ ...toCard(item, 'fav'), source: 'fav' as const })),
+      ...likes.map((item) => ({ ...toCard(item, 'likes'), source: 'likes' as const })),
+      ...reserve.map((item) => ({ ...toCard(item, 'reserve'), source: 'reserve' as const })),
+    ];
+  }, []);
+
+  const rows = useMemo(() => {
+    const all = data ?? [];
+    const keyword = query.trim().toLowerCase();
+    if (keyword === '') return all;
+    return all.filter((item) => item.title.toLowerCase().includes(keyword));
+  }, [data, query]);
+
+  return (
+    <Sheet open={open} onClose={onClose} tall>
+      <div className="mm-search">
+        <div className="mm-search__bar">
+          <Icon name="search" size={17} />
+          <input
+            autoFocus
+            value={query}
+            placeholder="搜索历史、收藏、点赞、预约的剧"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query !== '' && (
+            <button type="button" aria-label="清空" onClick={() => setQuery('')}>
+              ×
+            </button>
+          )}
+        </div>
+        <p className="mm-search__hint">只搜索本机记录，不请求云端；共 {data?.length ?? 0} 条</p>
+
+        {loading && (data ?? []).length === 0 && <div className="mm-empty"><p>正在读取本地记录…</p></div>}
+        {error !== null && <div className="mm-empty"><p>读取失败：{error}</p></div>}
+        {!loading && rows.length === 0 && (
+          <div className="mm-empty">
+            <p>{query.trim() === '' ? '还没有任何观看、收藏、点赞或预约记录' : `没有找到「${query.trim()}」`}</p>
+          </div>
+        )}
+        {rows.length > 0 && (
+          <div className="mm-grid mm-search__grid">
+            {rows.map((row) => (
+              <div key={`${row.source}-${row.seriesId}`} className="mm-search__cell">
+                <span className="mm-search__badge">
+                  {row.source === 'history' ? '历史' : row.source === 'fav' ? '收藏' : row.source === 'likes' ? '点赞' : '预约'}
+                </span>
+                <MeCardView row={row} tab={row.source ?? 'history'} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
 export function Me(): JSX.Element {
   const { account, refreshAccount, setLibraryTab } = useApp();
   const { go } = useNav();
@@ -201,6 +270,7 @@ export function Me(): JSX.Element {
   const [filter, setFilter] = useState<MeFilter>('all');
   const [loginOpen, setLoginOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     void refreshAccount();
@@ -310,7 +380,7 @@ export function Me(): JSX.Element {
               {item.label}
             </button>
           ))}
-          <button type="button" className="mm-tab-search" aria-label="搜索" onClick={() => go('search')}>
+          <button type="button" className="mm-tab-search" aria-label="搜索我的记录" onClick={() => setSearchOpen(true)}>
             <Icon name="search" size={19} />
           </button>
         </div>
@@ -363,6 +433,8 @@ export function Me(): JSX.Element {
           ))}
         </div>
       </Sheet>
+
+      <MeSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       <LoginSheet
         open={loginOpen}

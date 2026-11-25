@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
-import { api, coverOf } from '../api.ts';
+import { api, coverOf, type SeriesDetail } from '../api.ts';
 import { useAsync } from '../hooks/useAsync.ts';
 import { useNav } from './nav.tsx';
+import { readSnapshot, writeSnapshot } from './snapshot.ts';
 import { Empty, Icon, Loading } from './ui.tsx';
 
 /** 剧集详情：iOS 风格的大封面抽屉，选集、追剧、收藏、批量下载 */
 export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: string) => void }): JSX.Element {
   const { play } = useNav();
-  const series = useAsync((signal) => api.series(seriesId, signal), [seriesId]);
+  const series = useAsync(
+    (signal) => api.series(seriesId, signal),
+    [seriesId],
+    readSnapshot<SeriesDetail>(`series:${seriesId}`),
+  );
   const follow = useAsync((signal) => api.followFor(seriesId, signal), [seriesId]);
   const fav = useAsync((signal) => api.favoriteFor(seriesId, signal), [seriesId]);
 
@@ -23,6 +28,10 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
     setPicked([]);
     setNote('');
   }, [seriesId]);
+
+  useEffect(() => {
+    if (series.data !== null) writeSnapshot(`series:${seriesId}`, series.data);
+  }, [series.data, seriesId]);
 
   const drama = series.data?.drama;
   const episodes = series.data?.episodes ?? [];

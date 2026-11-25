@@ -1,21 +1,30 @@
 /**
- * 剧场页：对齐官方 7.4.5.32「找剧」。
+ * 剧场页：对齐官方新版「剧场/找剧」。
  *
  * 结构（从上到下）：
- *   搜索框 + 识剧 + AI 头像 → 频道标签条 → 四胶囊（筛选/排行榜/新剧/预约）
- *   → 双列瀑布（右列顶部放「继续观看」卡）。
+ *   搜索框 → 12 个频道 → 四胶囊（筛选/排行榜/新剧/预约）
+ *   → 响应式瀑布（手机 2 列、平板 3 列，右列顶部放「继续观看」卡）
  *
- * 主题：官方剧场是浅色，本页单独覆盖为 #f5f5f6 + 白卡；推荐流仍保持深色。
+ * 官方平板是 3 列、手机是 2 列；用户滑到底部时自动续页，不再只给一屏。
+ * 主题：官方剧场浅色；切到深色时整页跟着变深，不再写死白底。
  */
 import type { JSX } from 'react';
-import { useState } from 'react';
-import { api, type Drama, type ProgressEntry } from '../../api.ts';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { api, type Drama, type FeedTab, type HomeSection, type ProgressEntry } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
 import { useNav } from '../nav.tsx';
+import { readSnapshot, writeSnapshot } from '../snapshot.ts';
 import { Icon } from '../ui.tsx';
 
-const CATS = ['找剧', '真人剧', '社区', '漫剧', '电影', '听书', '小说'] as const;
+const CATS = ['找剧', '真人剧', '社区', '漫剧', '电影', '听书', '小说', '漫画', '长征', '经典', '知识'] as const;
 type Cat = (typeof CATS)[number];
+
+/** 上游有对应频道的三个 Tab；其余频道先给明确提示，不做假数据。 */
+const CAT_TAB: Partial<Record<Cat, FeedTab>> = {
+  找剧: 'recommend',
+  真人剧: 'live',
+  漫剧: 'anime',
+};
 
 function coverUrl(drama: Drama): string {
   return drama.cover !== '' ? drama.cover : `/api/poster/${drama.seriesId}`;
@@ -28,7 +37,7 @@ function pct(positionSec: number, durationSec: number): number {
 
 interface Item {
   drama: Drama;
-  /** 卡片底部小标签：分类或推荐位 */
+  /** 卡片底部小标签：分类或连载状态 */
   tag: string;
 }
 
@@ -39,8 +48,6 @@ function mergeSections(sections: Array<{ tabName: string; items: Drama[] }>): It
       if (!seen.has(drama.seriesId)) {
         seen.set(drama.seriesId, {
           drama,
-          // 上游目录项没有题材字段（tags 为空），不要拿「为你推荐」这种区块名
-          // 冒充分类；宁可显示连载状态（D-40）。
           tag: drama.tags[0] ?? (drama.finished ? '已完结' : '短剧'),
         });
       }
@@ -49,17 +56,20 @@ function mergeSections(sections: Array<{ tabName: string; items: Drama[] }>): It
   return [...seen.values()];
 }
 
-/** 估算卡片高度，把卡片分到较短的一列（官方是高度不等的双列瀑布）。 */
-function splitColumns(items: Item[], rightStart: number, cardWidth: number): [Item[], Item[]] {
-  const columns: [Item[], Item[]] = [[], []];
-  const heights: [number, number] = [0, rightStart];
+/** 估算卡片高度，把卡片分到较短的一列（官方是高度不等的瀑布流）。 */
+function splitColumns(items: Item[], rightStart: number, cardWidth: number, count: number): Item[][] {
+  const columns: Item[][] = Array.from({ length: count }, () => []);
+  const heights: number[] = Array.from({ length: count }, (_, index) => (index === count - 1 ? rightStart : 0));
   const posterH = cardWidth * 4 / 3;
   for (const item of items) {
     const lines = item.drama.title.length > 10 ? 2 : 1;
     const height = posterH + 8 + lines * 20 + 26 + 10;
-    const index: 0 | 1 = heights[0] <= heights[1] ? 0 : 1;
-    columns[index].push(item);
-    heights[index] += height;
+    let index = 0;
+    for (let i = 1; i < count; i += 1) {
+      if (heights[i]! < heights[index]!) index = i;
+    }
+    columns[index]!.push(item);
+    heights[index]! += height;
   }
   return columns;
 }
@@ -106,10 +116,10 @@ function ContinueCard({ entry, onPlay }: { entry: ProgressEntry; onPlay: () => v
   );
 }
 
-function Skeleton(): JSX.Element {
+function Skeleton({ columns }: { columns: number }): JSX.Element {
   return (
     <div className="mt-waterfall" aria-hidden="true">
-      {[0, 1].map((col) => (
+      {Array.from({ length: columns }, (_, col) => (
         <div className="mt-col" key={col}>
           {[0, 1, 2].map((i) => (
             <div className="mt-sk" key={i}>
@@ -124,29 +134,133 @@ function Skeleton(): JSX.Element {
   );
 }
 
+function useColumns(): number {
+  const [columns, setColumns] = useState(() => (window.matchMedia('(min-width: 600px)').matches ? 3 : 2));
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 600px)');
+    const onChange = (): void => setColumns(query.matches ? 3 : 2);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return columns;
+}
+
 export function Home(): JSX.Element {
   const { go, openDetail, play } = useNav();
   const [cat, setCat] = useState<Cat>('找剧');
-  const home = useAsync((signal) => api.home(signal), []);
-  const cont = useAsync((signal) => api.continueWatching(4, signal), []);
-  const feed = useAsync(async (signal) => {
-    if (cat === '真人剧') return (await api.feed('', 'live', false, signal)).items;
-    if (cat === '漫剧') return (await api.feed('', 'anime', false, signal)).items;
+  const columns = useColumns();
+  const home = useAsync((signal) => api.home(signal), [], readSnapshot<HomeSection[]>('home'));
+  const cont = useAsync((signal) => api.continueWatching(4, signal), [], readSnapshot<ProgressEntry[]>('continue'));
+  const [extra, setExtra] = useState<Item[]>([]);
+  const [cursor, setCursor] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const [nextLoading, setNextLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const seenRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (home.data !== null) writeSnapshot('home', home.data);
+  }, [home.data]);
+  useEffect(() => {
+    if (cont.data !== null) writeSnapshot('continue', cont.data);
+  }, [cont.data]);
+
+  const merged = useMemo(() => mergeSections(home.data ?? []), [home.data]);
+  const supported = CAT_TAB[cat] !== undefined;
+
+  const baseItems: Item[] = useMemo(() => {
+    if (cat === '找剧') return merged;
+    if (supported) return extra;
     return [];
+  }, [cat, merged, supported, extra]);
+
+  // 标记当前列表里已有的剧，续页时按 id 去重
+  useEffect(() => {
+    seenRef.current = new Set(baseItems.map((item) => item.drama.seriesId));
+  }, [baseItems]);
+
+  // 切频道：清空续页，卷回顶部
+  useEffect(() => {
+    setExtra([]);
+    setCursor('');
+    setHasMore(true);
+    setNextLoading(false);
+    const scroller = document.querySelector<HTMLElement>('.m-scroll');
+    if (scroller !== null) scroller.scrollTop = 0;
   }, [cat]);
 
-  const merged = mergeSections(home.data ?? []);
-  const items: Item[] =
-    cat === '找剧'
-      ? merged
-      : (feed.data ?? []).map((drama) => ({ drama, tag: drama.tags[0] ?? '短剧' }));
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (!supported || nextLoading || !hasMore) return;
+    const tab = CAT_TAB[cat];
+    if (tab === undefined) return;
+    setNextLoading(true);
+    try {
+      let nextCursor = cursor;
+      let appended = 0;
+      // 首页自带的一屏可能和 feed 第一页重合：最多翻 3 页，直到拿到新剧或没有更多
+      for (let round = 0; round < 3; round += 1) {
+        const page = await api.feed(nextCursor, tab, false);
+        nextCursor = page.cursor;
+        const fresh: Item[] = [];
+        for (const drama of page.items) {
+          if (seenRef.current.has(drama.seriesId)) continue;
+          seenRef.current.add(drama.seriesId);
+          fresh.push({ drama, tag: drama.tags[0] ?? (drama.finished ? '已完结' : '短剧') });
+        }
+        if (fresh.length > 0) {
+          setExtra((old) => [...old, ...fresh]);
+          appended += fresh.length;
+        }
+        if (!page.hasMore || appended > 0) {
+          setCursor(nextCursor);
+          setHasMore(page.hasMore);
+          if (appended > 0) return;
+          if (!page.hasMore) return;
+        }
+        if (round === 2) {
+          setCursor(nextCursor);
+          setHasMore(page.hasMore);
+        }
+      }
+    } catch {
+      // 续页失败不打断当前浏览，下一次触底会再试
+    } finally {
+      setNextLoading(false);
+    }
+  }, [cat, cursor, hasMore, nextLoading, supported]);
 
-  const loading = home.loading || (cat !== '找剧' && feed.loading);
-  const error = cat === '找剧' ? home.error : feed.error;
-  const empty = !loading && error === null && items.length === 0;
+  useEffect(() => {
+    if (!supported) return;
+    const node = sentinelRef.current;
+    if (node === null) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+      },
+      { rootMargin: '320px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore, supported]);
+
+  const items = useMemo(() => {
+    if (cat === '找剧') {
+      const seen = new Set<string>();
+      return [...merged, ...extra].filter((item) => {
+        if (seen.has(item.drama.seriesId)) return false;
+        seen.add(item.drama.seriesId);
+        return true;
+      });
+    }
+    return extra;
+  }, [cat, merged, extra]);
+
+  const loading = home.loading && merged.length === 0;
+  const error = cat === '找剧' ? home.error : null;
+  const empty = !loading && error === null && items.length === 0 && (!supported || !nextLoading);
   const continueEntry = cat === '找剧' ? (cont.data?.[0] ?? null) : null;
-  const [left, right] = splitColumns(items, continueEntry === null ? 0 : 150, 170);
-  const placeholder = merged[0]?.drama.title ?? '剧名、演员、剧情关键词';
+  const cardWidth = Math.max(120, Math.floor((Math.min(window.innerWidth, 980) - 24) / columns) - 8);
+  const cols = splitColumns(items, continueEntry === null ? 0 : 150, cardWidth, columns);
 
   const pickCat = (next: Cat): void => {
     if (next === cat) return;
@@ -158,12 +272,8 @@ export function Home(): JSX.Element {
       <div className="mt-search">
         <button type="button" className="mt-search__box" onClick={() => go('search')} aria-label="搜索">
           <Icon name="search" size={15} />
-          <span className="mt-search__ph">{placeholder}</span>
+          <span className="mt-search__ph">1000集以上的完结短剧爆剧</span>
         </button>
-        <button type="button" className="mt-search__scan" onClick={() => go('search')}>
-          <Icon name="search" size={13} /> 识剧
-        </button>
-        <button type="button" className="mt-avatar" onClick={() => go('me')} aria-label="我的" />
       </div>
 
       <div className="mt-cats">
@@ -195,44 +305,47 @@ export function Home(): JSX.Element {
         </button>
       </div>
 
-      {loading && <Skeleton />}
+      {loading && <Skeleton columns={columns} />}
       {!loading && error !== null && (
         <div className="mt-empty">
           <p>{error}</p>
-          <button type="button" onClick={() => (cat === '找剧' ? home.reload() : feed.reload())}>重试</button>
+          <button type="button" onClick={() => home.reload()}>重试</button>
         </div>
       )}
-      {!loading && error === null && (cat === '社区' || cat === '电影' || cat === '听书' || cat === '小说') && (
+      {!loading && error === null && !supported && (
         <div className="mt-empty">
           <p>{cat}频道暂未接入，先从「找剧」看起</p>
           <button type="button" onClick={() => setCat('找剧')}>去找剧</button>
         </div>
       )}
-      {empty && !(cat === '社区' || cat === '电影' || cat === '听书' || cat === '小说') && (
+      {empty && supported && (
         <div className="mt-empty">
-          <p>{cat}暂无内容</p>
+          <p>{nextLoading ? '正在加载…' : `${cat}暂无内容`}</p>
           <button type="button" onClick={() => setCat('找剧')}>去找剧</button>
         </div>
       )}
 
       {!loading && items.length > 0 && (
-        <div className="mt-waterfall">
-          <div className="mt-col">
-            {left.map((item) => (
-              <TheaterCard key={item.drama.seriesId} item={item} onOpen={openDetail} />
-            ))}
-          </div>
-          <div className="mt-col">
-            {continueEntry !== null && (
-              <ContinueCard
-                entry={continueEntry}
-                onPlay={() => play(continueEntry.seriesId, continueEntry.episodeId, continueEntry.episodeNo)}
-              />
-            )}
-            {right.map((item) => (
-              <TheaterCard key={item.drama.seriesId} item={item} onOpen={openDetail} />
-            ))}
-          </div>
+        <div className="mt-waterfall" data-cols={columns}>
+          {cols.map((column, index) => (
+            <div className="mt-col" key={index}>
+              {index === columns - 1 && continueEntry !== null && (
+                <ContinueCard
+                  entry={continueEntry}
+                  onPlay={() => play(continueEntry.seriesId, continueEntry.episodeId, continueEntry.episodeNo)}
+                />
+              )}
+              {column.map((item) => (
+                <TheaterCard key={item.drama.seriesId} item={item} onOpen={openDetail} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {supported && (
+        <div ref={sentinelRef} className="mt-more" aria-live="polite">
+          {nextLoading ? '加载中…' : hasMore ? '上滑加载更多' : '已经到底了'}
         </div>
       )}
     </div>

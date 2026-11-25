@@ -11,6 +11,8 @@ import { HOST, PORT, DATA_ROOT, VERSION, WEB_DIST, LAN, lanAddresses } from './c
 import { Router } from './http/router.ts';
 import { registerRoutes } from './http/api.ts';
 import { startSigner, stopSigner } from './util/signer.ts';
+import { getSettings } from './store/settings.ts';
+import { pruneMediaCache } from './media/transcode.ts';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -157,6 +159,8 @@ server.on('error', (err) => {
 
 server.listen(PORT, HOST, () => {
   fs.mkdirSync(path.join(DATA_ROOT, 'cache', 'images'), { recursive: true });
+  // 启动先按上限清一次：上次异常退出/缓存被手动拷大时，不能等下一集才回收
+  void pruneMediaCache(Math.max(0, getSettings().mediaCacheMB) * 1024 * 1024).catch(() => undefined);
   console.log(`[core] HorunDrama 手机端核心 v${VERSION} → http://${HOST}:${PORT}`);
   console.log(`[core] 数据目录: ${DATA_ROOT}`);
   console.log(`[core] 前端产物: ${fs.existsSync(WEB_DIST) ? WEB_DIST : '（未构建）'}`);
