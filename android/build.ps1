@@ -2,7 +2,7 @@
 # 用法：powershell -ExecutionPolicy Bypass -File .\android\build.ps1
 #
 # 注意：aapt2 / apksigner 在 Windows 上不认非 ASCII 路径（本工程目录名是中文），
-# 所以先把源码和资源拷到 D:\horun-mobile-build 这个纯英文目录里再构建，最后把 APK 拷回来。
+# 所以先把源码和资源拷到 D:\horun-android\.tmp\horun-mobile-build 这个纯英文路径里再构建，最后把 APK 拷回来。
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
