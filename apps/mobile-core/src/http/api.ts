@@ -44,6 +44,7 @@ import {
 } from '../media/downloads.ts';
 import { mediaFilePath } from '../media/transcode.ts';
 import { refreshWebStream, resolveWebStream, warmWebStream } from '../sources/webplay.ts';
+import { ShareLinkError, resolveShareShortLink } from '../sources/shareLink.ts';
 import {
   addReservation,
   clearProgress,
@@ -145,6 +146,22 @@ export function registerRoutes(router: Router): void {
       node: process.version,
       uptimeSec: Math.round((Date.now() - startedAt) / 1000),
     });
+  });
+
+  // 红果 /s/ 短链展开：只跟随红果域名，不接受任意 URL，避免变成开放代理。
+  router.get('/api/share/resolve', async ({ res, url }: Ctx) => {
+    const raw = url.searchParams.get('url') ?? '';
+    try {
+      ok(res, { url: await resolveShareShortLink(raw) });
+    } catch (err) {
+      if (err instanceof ShareLinkError) {
+        fail(res, err.status, err.code, err.message);
+        return;
+      }
+      log.warn(`短链展开失败: ${(err as Error).message}`);
+      const e = toUserMessage(err);
+      fail(res, e.status, e.code, e.message);
+    }
   });
 
   // 2.0.0：删掉废弃的 /api/meta（stage/features 是早期占位数据，前端从未使用，

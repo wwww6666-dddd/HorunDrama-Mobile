@@ -276,6 +276,8 @@ export const api = {
       signal,
     ),
   series: (id: string, signal?: AbortSignal) => call<SeriesDetail>(`/api/series/${encodeURIComponent(id)}`, signal),
+  resolveShare: (url: string) =>
+    call<{ url: string }>(`/api/share/resolve?url=${encodeURIComponent(url)}`),
   play: (episodeId: string, quality = '', upgrade = false, hevc = false, live = false, wait = false) => {
     const params = new URLSearchParams();
     if (quality !== '') params.set('quality', quality);

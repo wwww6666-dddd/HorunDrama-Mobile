@@ -13,7 +13,7 @@ import { api } from '../api.ts';
 import { copyToClipboard } from '../app-info.ts';
 import { playHash, parsePlay } from '../routes.ts';
 import { useApp } from '../store.ts';
-import { hongguoShareLink, parseSharedLink } from '../share.ts';
+import { extractShareUrl, hongguoShareLink, isShortShareLink, parseSharedLink } from '../share.ts';
 
 /** 解析出来的待观看目标（先给用户看一眼再跳） */
 interface Preview {
@@ -99,17 +99,28 @@ export function ShareDialog(): JSX.Element | null {
     }
   };
 
-  /** 解析链接 → 补齐剧集信息 → 弹卡片（不跳转） */
+  /** 解析链接 → 短链先展开 → 补齐剧集信息 → 弹卡片（不跳转） */
   const resolveShared = async (): Promise<void> => {
-    const parsed = parseSharedLink(text);
-    if (parsed === null) {
-      setPreview(null);
-      setNote('认不出这个链接。红果分享链接形如 …video-animation-share?video_id=剧号&vid=集号，请整条粘进来。');
-      return;
-    }
     setBusy(true);
     setNote('');
     try {
+      let parsed = parseSharedLink(text);
+      if (parsed === null) {
+        const shortUrl = extractShareUrl(text);
+        if (shortUrl !== '' && isShortShareLink(shortUrl)) {
+          setNote('正在展开红果短链…');
+          const resolved = await api.resolveShare(shortUrl);
+          parsed = parseSharedLink(resolved.url);
+          if (parsed === null) throw new Error('短链跳转后没找到剧号，可能链接已经失效');
+        }
+      }
+      if (parsed === null) {
+        setPreview(null);
+        setNote('没认出这个链接。可直接粘贴红果分享链接，或 novelquickapp.com/s/… 短链。');
+        return;
+      }
+
+      setNote('');
       const detail = await api.series(parsed.seriesId);
       let episodeId = parsed.episodeId;
       let no = parsed.no;
@@ -253,7 +264,7 @@ export function ShareDialog(): JSX.Element | null {
           >
             {busy ? '解析中…' : '解析链接'}
           </button>
-          <p className="sharedlg__example">整条粘贴即可，自动识别剧号、集号和开始时间。</p>
+          <p className="sharedlg__example">整条粘贴即可，短链会自动展开，再识别剧号和集号。</p>
 
           {preview !== null && (
             <div className="sharedlg__preview">
@@ -286,7 +297,7 @@ export function ShareDialog(): JSX.Element | null {
 
         <p className="sharedlg__foot">
           {light
-            ? '识剧只在本地解析链接，不上传图片，也不经过任何服务器。'
+            ? '识剧只解析链接，不上传图片；短链会向红果服务器展开一次。'
             : '软件本身没有服务器，链接内容和红果原生分享一致，不经过任何中转。'}
         </p>
       </div>

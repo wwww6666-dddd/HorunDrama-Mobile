@@ -32,6 +32,28 @@ export interface SharedRef {
 
 const HONGUO_SHARE = 'https://novelquickapp.com/hongguo/ug/pages/video-animation-share';
 
+const SHARE_URL = /https?:\/\/[^\s<>"'，。！？、；：）】」』\u3000\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]+/i;
+const SHORT_HOSTS = new Set(['novelquickapp.com', 'www.novelquickapp.com']);
+const SHORT_PATH = /^\/s\/[A-Za-z0-9_-]+\/?$/;
+
+/** 从整段分享文案里把链接拎出来；红果 App 的分享语经常把链接夹在中文里。 */
+export function extractShareUrl(raw: string): string {
+  const m = SHARE_URL.exec(raw.trim());
+  return m === null ? '' : m[0].replace(/[.,;:!?]+$/g, '');
+}
+
+/** 是否红果 `/s/<code>/` 短链（需要先让核心跟随 302 展开）。 */
+export function isShortShareLink(raw: string): boolean {
+  const text = extractShareUrl(raw);
+  if (text === '') return false;
+  try {
+    const url = new URL(text);
+    return SHORT_HOSTS.has(url.hostname.toLowerCase()) && SHORT_PATH.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
 /** 生成红果原链接（按官方参数命名：video_id=剧、vid=集；另挂 no/t 供本软件解析）。 */
 export function hongguoShareLink(seriesId: string, episodeId: string, no: number, at = 0): string {
   const params = new URLSearchParams({
@@ -85,8 +107,10 @@ export function parseSharedLink(raw: string): SharedRef | null {
     };
   }
 
-  // 2) 红果分享链接
-  const query = text.includes('?') ? text.slice(text.indexOf('?') + 1) : '';
+  // 2) 红果分享链接（整段分享文案先抽出 URL，避免中文/表情混在 query 里）
+  const shareUrl = extractShareUrl(text);
+  const target = shareUrl !== '' ? shareUrl : text;
+  const query = target.includes('?') ? target.slice(target.indexOf('?') + 1) : '';
   if (query !== '') {
     const params = new URLSearchParams(query.split('#')[0] ?? '');
     const bookId = id(pick(params, SERIES_KEYS));
