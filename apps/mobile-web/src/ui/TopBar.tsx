@@ -157,7 +157,7 @@ export function TopBar(): JSX.Element {
           className="btn btn--ghost btn--icon topbar__share"
           title="分享续播"
           aria-label="分享续播"
-          onClick={openShare}
+          onClick={() => openShare()}
         >
           <IconShare size={18} />
         </button>

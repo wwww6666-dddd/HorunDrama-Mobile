@@ -2332,6 +2332,74 @@ html.m-mode .sharedlg__preview-actions {
   gap: 8px;
 }
 
+/* 搜索页「识剧」复用分享弹层：浅色底部抽屉，和搜索页同色，不能突然变黑 */
+html.m-mode .sharedlg--light .sharedlg__mask {
+  background: rgba(20, 16, 12, 0.38);
+}
+
+html.m-mode .sharedlg--light .sharedlg__card {
+  border-color: #ebe8e3;
+  background: #ffffff;
+  box-shadow: 0 -24px 70px rgba(26, 20, 14, 0.22);
+}
+
+html.m-mode .sharedlg--light .sharedlg__title,
+html.m-mode .sharedlg--light .sharedlg__label,
+html.m-mode .sharedlg--light .sharedlg__preview-title {
+  color: #1f1c18;
+}
+
+html.m-mode .sharedlg--light .sharedlg__sub,
+html.m-mode .sharedlg--light .sharedlg__hint,
+html.m-mode .sharedlg--light .sharedlg__note,
+html.m-mode .sharedlg--light .sharedlg__foot,
+html.m-mode .sharedlg--light .sharedlg__preview-meta {
+  color: #8b857d;
+}
+
+html.m-mode .sharedlg--light .sharedlg__close {
+  border-color: #e6e1da;
+  background: #f7f4f0;
+  color: #6e675f;
+}
+
+html.m-mode .sharedlg--light .sharedlg__block {
+  border-color: #eee9e2;
+  background: #faf8f5;
+}
+
+html.m-mode .sharedlg--light .sharedlg__input {
+  border-color: #e6e1da;
+  background: #ffffff;
+  color: #2b2620;
+}
+
+html.m-mode .sharedlg--light .sharedlg__input::placeholder {
+  color: #aaa39a;
+}
+
+html.m-mode .sharedlg--light .sharedlg__btn {
+  border-color: #e6e1da;
+  background: #ffffff;
+  color: #3a342d;
+}
+
+html.m-mode .sharedlg--light .sharedlg__btn--primary {
+  border-color: transparent;
+  background: var(--m-accent);
+  color: #ffffff;
+}
+
+html.m-mode .sharedlg--light .sharedlg__hint code {
+  background: #f1ede7;
+  color: #4a443d;
+}
+
+html.m-mode .sharedlg--light .sharedlg__preview {
+  border-color: #eee9e2;
+  background: #ffffff;
+}
+
 /* 推荐流入场：只给当前这一屏，切走再切回会重播，节奏比整页动画更轻 */
 @keyframes m-rail-in {
   from { opacity: 0; transform: translateX(14px) scale(0.92); }

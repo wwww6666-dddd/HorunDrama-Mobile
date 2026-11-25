@@ -1155,7 +1155,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
           </span>
           <em>收藏</em>
         </button>
-        <button className="play__rail-btn" onClick={openShare} title="分享续播">
+        <button className="play__rail-btn" onClick={() => openShare()} title="分享续播">
           <span className="play__rail-icon">↗</span>
           <em>分享</em>
         </button>
@@ -1247,7 +1247,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               </span>
               <b>{fmtCount(diggCount) || '点赞'}</b>
             </button>
-            <button type="button" className="mp-rail-btn mp-rail-share" onClick={openShare} aria-label="分享">
+            <button type="button" className="mp-rail-btn mp-rail-share" onClick={() => openShare()} aria-label="分享">
               <span className="mp-rail-icon">
                 <MpIcon kind="share" size={30} />
               </span>

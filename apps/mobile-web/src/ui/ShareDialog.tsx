@@ -29,6 +29,7 @@ interface Preview {
 export function ShareDialog(): JSX.Element | null {
   const open = useApp((s) => s.shareOpen);
   const closeShare = useApp((s) => s.closeShare);
+  const light = useApp((s) => s.shareLight);
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -140,14 +141,16 @@ export function ShareDialog(): JSX.Element | null {
     current === null ? '' : hongguoShareLink(current.seriesId, current.episodeId, current.no, current.at);
 
   return (
-    <div className="sharedlg" role="dialog" aria-modal="true" aria-label="分享续播">
+    <div className={`sharedlg${light ? ' sharedlg--light' : ''}`} role="dialog" aria-modal="true" aria-label={light ? '识剧' : '分享续播'}>
       <button className="sharedlg__mask" aria-label="关闭" onClick={closeShare} />
       <div className="sharedlg__card">
         <header className="sharedlg__head">
           <div>
-            <h2 className="sharedlg__title">分享续播</h2>
+            <h2 className="sharedlg__title">{light ? '识剧' : '分享续播'}</h2>
             <p className="sharedlg__sub">
-              分享出去的是红果原链接；把别人发的链接粘回来，先给你看是哪部剧、第几集、从哪开始，再决定要不要看。
+              {light
+                ? '把红果分享链接粘进来，先识别出是哪部剧、第几集、从哪开始，再决定要不要看。识剧按链接解析，不做拍照识别。'
+                : '分享出去的是红果原链接；把别人发的链接粘回来，先给你看是哪部剧、第几集、从哪开始，再决定要不要看。'}
             </p>
           </div>
           <button className="sharedlg__close" onClick={closeShare} aria-label="关闭">
@@ -155,34 +158,36 @@ export function ShareDialog(): JSX.Element | null {
           </button>
         </header>
 
-        <section className="sharedlg__block">
-          <p className="sharedlg__label">当前这一集</p>
-          {current === null ? (
-            <p className="sharedlg__hint">先在播放页打开一集，再回来点这里。</p>
-          ) : (
-            <>
-              <div className="sharedlg__row">
-                <input
-                  className="sharedlg__input"
-                  ref={linkRef}
-                  readOnly
-                  value={currentLink}
-                  onFocus={(e) => e.target.select()}
-                />
-                <button className="sharedlg__btn sharedlg__btn--primary" onClick={copyCurrent}>
-                  {copied ? '已复制' : '复制链接'}
-                </button>
-              </div>
-              <p className="sharedlg__hint">
-                第 {current.no} 集 · {fmt(current.at)}；链接里的 <code>no</code>/<code>t</code> 只给本软件解析，
-                红果官方打开时按原样生效。
-              </p>
-            </>
-          )}
-        </section>
+        {!light && (
+          <section className="sharedlg__block">
+            <p className="sharedlg__label">当前这一集</p>
+            {current === null ? (
+              <p className="sharedlg__hint">先在播放页打开一集，再回来点这里。</p>
+            ) : (
+              <>
+                <div className="sharedlg__row">
+                  <input
+                    className="sharedlg__input"
+                    ref={linkRef}
+                    readOnly
+                    value={currentLink}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button className="sharedlg__btn sharedlg__btn--primary" onClick={copyCurrent}>
+                    {copied ? '已复制' : '复制链接'}
+                  </button>
+                </div>
+                <p className="sharedlg__hint">
+                  第 {current.no} 集 · {fmt(current.at)}；链接里的 <code>no</code>/<code>t</code> 只给本软件解析，
+                  红果官方打开时按原样生效。
+                </p>
+              </>
+            )}
+          </section>
+        )}
 
         <section className="sharedlg__block">
-          <p className="sharedlg__label">打开别人分享的链接</p>
+          <p className="sharedlg__label">{light ? '粘贴红果分享链接' : '打开别人分享的链接'}</p>
           <div className="sharedlg__row">
             <input
               className="sharedlg__input"
@@ -230,7 +235,11 @@ export function ShareDialog(): JSX.Element | null {
 
         {note !== '' && <p className="sharedlg__note">{note}</p>}
 
-        <p className="sharedlg__foot">软件本身没有服务器，链接内容和红果原生分享一致，不经过任何中转。</p>
+        <p className="sharedlg__foot">
+          {light
+            ? '识剧只在本地解析链接，不上传图片，也不经过任何服务器。'
+            : '软件本身没有服务器，链接内容和红果原生分享一致，不经过任何中转。'}
+        </p>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 package com.horun.drama;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.StatFs;
@@ -94,6 +95,20 @@ final class NodeCore {
     }
 
     /**
+     * APK 的安装/更新时间。同一个 versionCode 反复覆盖安装时，仅靠版本号会误判成"没变"，
+     * 继续用旧的内置网页；把更新时间带进 marker，任何一次重装都会重新释放 assets。
+     */
+    private static long apkUpdateTime(Context ctx) {
+        try {
+            return ctx.getPackageManager()
+                    .getPackageInfo(ctx.getPackageName(), 0)
+                    .lastUpdateTime;
+        } catch (PackageManager.NameNotFoundException err) {
+            return 0L;
+        }
+    }
+
+    /**
      * 把 assets 里的 node/core/web 释放到应用私有目录。
      * 只在首次启动或版本变化时做，避免每次启动都拷贝 50MB。
      */
@@ -103,7 +118,7 @@ final class NodeCore {
         File core = new File(prefix, "core");
         File web = new File(prefix, "web");
         File marker = new File(prefix, "runtime-version.txt");
-        String version = BuildConfig.VERSION_NAME + "-" + BuildConfig.VERSION_CODE;
+        String version = BuildConfig.VERSION_NAME + "-" + BuildConfig.VERSION_CODE + "-" + apkUpdateTime(ctx);
         if (marker.isFile() && version.equals(readText(marker).trim())) {
             if (new File(core, "src/index.ts").isFile()
                     && new File(web, "index.html").isFile()

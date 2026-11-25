@@ -62,6 +62,32 @@ function Find-TextNode([xml]$doc, [string]$text) {
     return $null
 }
 
+function Find-TextContains([xml]$doc, [string]$text) {
+    if (-not $doc) { return $null }
+    foreach ($n in $doc.SelectNodes('//node')) {
+        if ($n.text -and $n.text.Contains($text)) { return $n }
+    }
+    return $null
+}
+
+function Find-ClickableText([xml]$doc, [string]$text) {
+    if (-not $doc) { return $null }
+    foreach ($n in $doc.SelectNodes('//node')) {
+        if ($n.text -eq $text -and $n.clickable -eq 'true' -and $n.enabled -eq 'true') { return $n }
+    }
+    return $null
+}
+
+function Find-CheckboxNode([xml]$doc) {
+    if (-not $doc) { return $null }
+    $nodes = $doc.SelectNodes('//node[@checkable="true"]')
+    foreach ($n in $nodes) {
+        if ($n.class -match 'CheckBox|RadioButton' -or $n.'resource-id' -match 'check') { return $n }
+    }
+    if ($nodes.Count -gt 0) { return $nodes[0] }
+    return $null
+}
+
 function Tap-Bounds([string]$bounds) {
     $m = [regex]::Match($bounds, '\[(\d+),(\d+)\]\[(\d+),(\d+)\]')
     if (-not $m.Success) { return $false }
@@ -78,7 +104,7 @@ function Test-CheckboxChecked {
     try {
         Add-Type -AssemblyName System.Drawing
         $bmp = [System.Drawing.Bitmap]::FromFile($png)
-        $c = $bmp.GetPixel([int]($size[0] * 0.17), [int]($size[1] * 0.87))
+        $c = $bmp.GetPixel([int]($size[0] * 0.12), [int]($size[1] * 0.88))
         $bmp.Dispose()
         return ($c.B -gt 150 -and $c.R -lt 120)
     } catch { return $false }
@@ -144,6 +170,8 @@ Write-Host "设备：$model  Android API $sdk  $abi  $($script:s)"
 Start-Sleep -Milliseconds 500
 
 Write-Host "安装：$Apk"
+# 先停旧进程：覆盖安装时旧进程不会自动退出，否则装完启动的还是旧代码
+& $adb -s $script:s shell am force-stop $Package 2>$null | Out-Null
 $outFile = Join-Path $tmp 'install-adb.out.txt'
 $errFile = Join-Path $tmp 'install-adb.err.txt'
 $p = Start-Process -FilePath $adb -ArgumentList @('-s', $script:s, 'install', '-r', $Apk) -PassThru -NoNewWindow -RedirectStandardOutput $outFile -RedirectStandardError $errFile
@@ -177,7 +205,7 @@ while ((Get-Date) -lt $deadline) {
     if ($focus -match 'appmarket|appgallery|InstallDistActivity|packageinstaller') {
         $doc = Get-UiXml
         $success = Find-TextNode $doc '安装成功'
-        $done = Find-TextNode $doc '完成'
+        $done = Find-ClickableText $doc '完成'
         if ($success -and $done) {
             if (Tap-Bounds $done.bounds) {
                 Write-Host '已点『完成』'
@@ -198,20 +226,38 @@ while ((Get-Date) -lt $deadline) {
             }
         }
 
-        # 详情页：先勾“已了解…”，再点底部“继续安装”
-        if (-not (Test-CheckboxChecked)) {
-            Tap-Ratio 0.17 0.87
-            Start-Sleep -Milliseconds 800
-            if (-not (Test-CheckboxChecked)) { Tap-Ratio 0.17 0.87 }
-            Write-Host '已勾选风险确认'
-            Start-Sleep -Milliseconds 500
+        # 华为「安装位置」对话框：默认可能停在「应用管控中心」，改成「直接安装」再确定
+        $direct = Find-TextNode $doc '直接安装'
+        $ok = Find-TextNode $doc '确定'
+        if ($direct -and $ok) {
+            if (Tap-Bounds $direct.bounds) {
+                Start-Sleep -Milliseconds 600
+                Tap-Bounds $ok.bounds | Out-Null
+                Write-Host '已选『直接安装』'
+                $lastAction = 'location'
+                Start-Sleep -Seconds 4
+                continue
+            }
         }
-        if (Test-CheckboxChecked) {
-            Tap-Ratio 0.50 0.95
-            Write-Host '已点『继续安装』（详情页）'
-            $lastAction = 'detail'
-            Start-Sleep -Seconds 6
-            continue
+
+        # 详情页：勾选框从 XML 节点点，别按坐标——坐标会点到「设置」链接，跳到安装位置对话框
+        $cb = Find-CheckboxNode $doc
+        if ($cb -and $cb.checked -eq 'false') {
+            if (Tap-Bounds $cb.bounds) {
+                Write-Host '已勾选风险确认'
+                $lastAction = 'checkbox'
+                Start-Sleep -Milliseconds 900
+                continue
+            }
+        }
+        $cont = Find-ClickableText $doc '继续安装'
+        if ($cont) {
+            if (Tap-Bounds $cont.bounds) {
+                Write-Host '已点『继续安装』（详情页）'
+                $lastAction = 'detail'
+                Start-Sleep -Seconds 6
+                continue
+            }
         }
     }
 

@@ -217,3 +217,63 @@
   color: var(--text-3);
   text-align: center;
 }
+
+/* 搜索页「识剧」入口沿用分享弹层，但必须跟浅色搜索页一致，不能突然变黑 */
+.sharedlg--light .sharedlg__mask {
+  background: rgba(20, 16, 12, 0.38);
+}
+.sharedlg--light .sharedlg__card {
+  border-color: #ebe8e3 !important;
+  background: #ffffff !important;
+  box-shadow: 0 24px 64px -28px rgba(26, 20, 14, 0.35) !important;
+}
+.sharedlg--light .sharedlg__title,
+.sharedlg--light .sharedlg__label,
+.sharedlg--light .sharedlg__preview-title {
+  color: #1f1c18 !important;
+}
+.sharedlg--light .sharedlg__sub,
+.sharedlg--light .sharedlg__hint,
+.sharedlg--light .sharedlg__preview-meta,
+.sharedlg--light .sharedlg__foot {
+  color: #8b857d !important;
+}
+.sharedlg--light .sharedlg__close {
+  border-color: #e6e1da !important;
+  color: #6e675f !important;
+}
+.sharedlg--light .sharedlg__close:hover {
+  background: #f5f2ee !important;
+}
+.sharedlg--light .sharedlg__block {
+  border-color: #eee9e2 !important;
+  background: #faf8f5 !important;
+}
+.sharedlg--light .sharedlg__input {
+  border-color: #e6e1da !important;
+  background: #ffffff !important;
+  color: #2b2620 !important;
+}
+.sharedlg--light .sharedlg__input::placeholder {
+  color: #aaa39a !important;
+}
+.sharedlg--light .sharedlg__btn {
+  border-color: #e6e1da !important;
+  color: #3a342d !important;
+}
+.sharedlg--light .sharedlg__btn--primary {
+  border-color: transparent !important;
+  background: var(--accent) !important;
+  color: #ffffff !important;
+}
+.sharedlg--light .sharedlg__hint code {
+  background: #f1ede7 !important;
+  color: #4a443d !important;
+}
+.sharedlg--light .sharedlg__preview {
+  border-color: #eee9e2 !important;
+  background: #ffffff !important;
+}
+.sharedlg--light .sharedlg__cover {
+  background: #f3efea !important;
+}

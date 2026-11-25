@@ -147,7 +147,7 @@ export function Search(): JSX.Element {
       return;
     }
     if (kind === 'scan') {
-      openShare();
+      openShare(true);
       return;
     }
     if (kind === 'rank') {

@@ -42,7 +42,9 @@ interface AppState {
   closeReward: () => void;
   /** 「分享续播」弹窗开关（复制本集链接 / 解析别人分享的红果链接） */
   shareOpen: boolean;
-  openShare: () => void;
+  /** 搜索页「识剧」复用分享弹层时用浅色，跟搜索页保持一致 */
+  shareLight: boolean;
+  openShare: (light?: boolean) => void;
   closeShare: () => void;
   refreshAccount: () => Promise<void>;
   openLogin: () => void;
@@ -132,7 +134,8 @@ export const useApp = create<AppState>((set, get) => ({
   openReward: () => set({ rewardOpen: true }),
   closeReward: () => set({ rewardOpen: false }),
   shareOpen: false,
-  openShare: () => set({ shareOpen: true }),
+  shareLight: false,
+  openShare: (light = false) => set({ shareOpen: true, shareLight: light }),
   closeShare: () => set({ shareOpen: false }),
   closeLogin: () => set({ loginOpen: false }),
   openDetail: (seriesId) => set({ detailId: seriesId }),
