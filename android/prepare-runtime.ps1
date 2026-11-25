@@ -55,7 +55,11 @@ $ffdir = Join-Path $tmp 'ffmpeg-unzip'
 Remove-Item -Recurse -Force $ffdir -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $ffdir | Out-Null
 if (Test-Path $ffmini) {
-  tar.exe -xzf $ffmini -C $ffdir
+  # pwsh 的 PATH 有时不含 System32，直接写命令名会找不到 tar；按 PATH → System32 顺序兜底
+  $tarCmd = Get-Command tar -ErrorAction SilentlyContinue
+  $tarExe = if ($null -ne $tarCmd) { $tarCmd.Source } elseif (Test-Path "$env:SystemRoot\System32\tar.exe") { "$env:SystemRoot\System32\tar.exe" } else { '' }
+  if ($tarExe -eq '') { throw '找不到 tar.exe，无法解压 mini ffmpeg' }
+  & $tarExe -xzf $ffmini -C $ffdir
   if ($LASTEXITCODE -ne 0) { throw '解压 mini ffmpeg 失败' }
 } else {
   Expand-Archive -LiteralPath $ffzip -DestinationPath $ffdir -Force
@@ -74,7 +78,7 @@ Set-Content -Path (Join-Path $assets 'core\package.json') -Value $pkg -Encoding 
 $sdk = Join-Path $root 'apps\mobile-core\node_modules\openhongguo'
 if (-not (Test-Path $sdk)) { throw '缺少 openhongguo 依赖，请先在 apps\mobile-core 执行 npm install' }
 Copy-Item $sdk (Join-Path $assets 'core\node_modules\openhongguo') -Recurse -Force
-Copy-Item (Join-Path $root 'apps\mobile-web\dist') (Join-Path $assets 'web') -Recurse -Force
+Copy-Item (Join-Path $root 'apps\mobile-web\dist\*') (Join-Path $assets 'web') -Recurse -Force
 Copy-Item $cert (Join-Path $assets 'runtime\cacert.pem') -Force
 
 Write-Host '[5/5] 汇总'

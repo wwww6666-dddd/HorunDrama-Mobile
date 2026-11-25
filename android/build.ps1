@@ -61,7 +61,6 @@ Write-Host '[3/8] 链接资源与清单'
   --min-sdk-version 24 --target-sdk-version 35 `
   --version-code $versionCode --version-name $versionName `
   --auto-add-overlay `
-  -A (Join-Path $stage 'assets') `
   -I $AJAR `
   (Join-Path $work 'res.zip')
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link 失败' }
@@ -103,6 +102,22 @@ try {
     $s.Dispose()
     Write-Host "  + $name $([math]::Round($buf.Length/1MB,1)) MB"
   }
+
+  # aapt2 的 -A 在 Windows 上会把 asset 条目写成反斜杠（assets\core\...），
+  # AssetManager 列不出目录，NodeCore 释放运行时直接报 "core"。
+  # 这里不用 -A，自己按 POSIX 路径（assets/core/...）写入，保证 list/open 都能用。
+  $assetRoot = Join-Path $stage 'assets'
+  $assetCount = 0
+  foreach ($a in Get-ChildItem $assetRoot -Recurse -File) {
+    $rel = $a.FullName.Substring($assetRoot.Length + 1).Replace('\', '/')
+    $entry = $zip.CreateEntry("assets/$rel", [System.IO.Compression.CompressionLevel]::Optimal)
+    $s = $entry.Open()
+    $buf = [System.IO.File]::ReadAllBytes($a.FullName)
+    $s.Write($buf, 0, $buf.Length)
+    $s.Dispose()
+    $assetCount++
+  }
+  Write-Host "  + assets/  $assetCount files"
 } finally {
   $zip.Dispose()
 }
