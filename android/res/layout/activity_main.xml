@@ -21,6 +21,48 @@
 
     <!-- 本地核心启动中/失败时的兜底页（不是系统那个白底错误页） -->
     <LinearLayout
+        android:id="@+id/splashBox"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/splash_bg"
+        android:orientation="vertical"
+        android:paddingLeft="43dp"
+        android:paddingTop="258dp"
+        android:paddingRight="43dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.03"
+            android:lineSpacingExtra="6dp"
+            android:text="免费短剧\n尽在 Horun"
+            android:textColor="@color/splash_text"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="不用等广告，打开就能看"
+            android:textColor="@color/splash_sub"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/splashBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginLeft="43dp"
+        android:layout_marginBottom="70dp"
+        android:letterSpacing="0.28"
+        android:text="HORUN DRAMA"
+        android:textColor="@color/splash_sub"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
         android:id="@+id/errorBox"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

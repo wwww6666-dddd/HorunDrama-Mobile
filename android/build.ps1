@@ -19,8 +19,8 @@ $stage = 'D:\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
 $apk = Join-Path $work 'HorunDrama-mobile-1.1.0.apk'
-$versionCode = 2
-$versionName = '1.1.0'
+$versionCode = 3
+$versionName = '1.1.1'
 
 foreach ($need in @("$JDK\bin\javac.exe", "$BT\aapt2.exe", "$BT\d8.bat", "$BT\apksigner.bat", "$BT\zipalign.exe", $AJAR, (Join-Path $runtimeStage 'assets'), (Join-Path $runtimeStage 'jniLibs'))) {
   if (-not (Test-Path $need)) { throw "缺少构建素材: $need（先跑 .\android\prepare-runtime.ps1）" }

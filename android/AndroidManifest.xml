@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.horun.drama"
-    android:versionCode="2"
-    android:versionName="1.1.0">
+    android:versionCode="3"
+    android:versionName="1.1.1">
 
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
 
@@ -19,20 +19,43 @@
         android:hardwareAccelerated="true"
         android:largeHeap="true"
         android:extractNativeLibs="true"
-        android:supportsRtl="false">
+        android:allowBackup="false"
+        android:allowNativeHeapPointerTagging="false"
+        android:requestLegacyExternalStorage="true"
+        android:resizeableActivity="true"
+        android:supportsRtl="true">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
             android:windowSoftInputMode="adjustResize">
+            <!-- 官方 7.4.5.32 的 App scheme 是 dragon8662；接住官方分享链接，落到详情抽屉 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dragon8662" />
+                <data android:scheme="horun" />
+            </intent-filter>
+        </activity>
+
+        <!-- 官方壳子的启动方式：activity-alias 指向主 Activity，主题是带 slogan 的窗口背景 -->
+        <activity-alias
+            android:name=".SplashActivity"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:theme="@style/SplashTheme"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.VIEW" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <activity
             android:name=".SetupActivity"

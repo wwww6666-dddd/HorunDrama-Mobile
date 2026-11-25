@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
@@ -37,6 +39,8 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private FrameLayout fullscreenBox;
+    private View splashBox;
+    private View splashBottom;
     private View errorBox;
     private TextView errorTitle;
     private TextView errorText;
@@ -45,19 +49,30 @@ public class MainActivity extends Activity {
     private WebChromeClient.CustomViewCallback customViewCallback;
     private WebChromeClient chromeClient;
     private long lastBackAt;
+    /** 冷启动/深链带进来的 hash，核心就绪后直接打开 */
+    private String pendingHash = DEFAULT_HOME;
+    /** 当前状态栏是浅色还是深色（全屏视频退出后要恢复） */
+    private boolean lightBars;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // 官方 SplashActivity 是 activity-alias + 闪屏主题；这里在窗口 attach 前切回 AppTheme
+        setTheme(R.style.AppTheme);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         web = findViewById(R.id.web);
         fullscreenBox = findViewById(R.id.fullscreen);
+        splashBox = findViewById(R.id.splashBox);
+        splashBottom = findViewById(R.id.splashBottom);
         errorBox = findViewById(R.id.errorBox);
         errorTitle = findViewById(R.id.errorTitle);
         errorText = findViewById(R.id.errorText);
         retryBtn = findViewById(R.id.retryBtn);
         retryBtn.setOnClickListener(v -> boot());
+
+        String deepHash = routeFromUri(getIntent() == null ? null : getIntent().getData());
+        if (deepHash != null) pendingHash = deepHash;
 
         setupWebView();
         boot();
@@ -65,13 +80,14 @@ public class MainActivity extends Activity {
 
     /** 拉起手机内核心；已经就绪就直接进首页。 */
     private void boot() {
-        showBooting();
+        showSplash();
         NodeCore.start(this, new NodeCore.Callback() {
             @Override
             public void onReady() {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     hideError();
+                    hideSplash();
                     loadHome();
                 });
             }
@@ -80,6 +96,7 @@ public class MainActivity extends Activity {
             public void onError(String message) {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+                    hideSplash();
                     showError(message);
                 });
             }
@@ -99,7 +116,15 @@ public class MainActivity extends Activity {
         s.setBuiltInZoomControls(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
-        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
+        s.setJavaScriptCanOpenWindowsAutomatically(false);
+        s.setSupportMultipleWindows(false);
+        s.setSaveFormData(false);
+        s.setNeedInitialFocus(false);
+        s.setTextZoom(100);
+        s.setDefaultTextEncodingName("UTF-8");
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             s.setForceDark(WebSettings.FORCE_DARK_OFF);
@@ -201,10 +226,15 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** 站内链接留在 WebView，站外链接交给系统浏览器。 */
+    /** 站内链接留在 WebView，站外链接交给系统浏览器；dragon8662:// 走站内深链。 */
     private boolean handleUrl(Uri uri) {
         if (uri == null) return true;
         String scheme = uri.getScheme() == null ? "" : uri.getScheme();
+        if (scheme.equals("dragon8662") || scheme.equals("horun")) {
+            String hash = routeFromUri(uri);
+            if (hash != null && web != null) web.loadUrl(NodeCore.BASE_URL + hash);
+            return true;
+        }
         if (!scheme.startsWith("http")) return true;
         String authority = uri.getAuthority() == null ? "" : uri.getAuthority();
         if (authority.equalsIgnoreCase(NodeCore.HOST + ":" + NodeCore.PORT)
@@ -221,19 +251,116 @@ public class MainActivity extends Activity {
     }
 
     private void loadHome() {
-        String url = NodeCore.BASE_URL + DEFAULT_HOME;
+        String url = NodeCore.BASE_URL + pendingHash;
         String current = web.getUrl();
-        if (current != null && current.startsWith(NodeCore.BASE_URL)) {
+        if (current != null && current.equals(url)) {
             return;
         }
         web.loadUrl(url);
     }
 
-    private void showBooting() {
-        errorTitle.setText("正在启动本地核心…");
-        errorText.setText("首次启动会释放内置运行组件，大约需要 5–15 秒。\n\n之后每次打开都直接进入，不再依赖电脑。");
-        retryBtn.setEnabled(false);
-        errorBox.setVisibility(View.VISIBLE);
+    private void showSplash() {
+        if (splashBox != null) splashBox.setVisibility(View.VISIBLE);
+        if (splashBottom != null) splashBottom.setVisibility(View.VISIBLE);
+        if (errorBox != null) errorBox.setVisibility(View.GONE);
+        applyBars(true);
+    }
+
+    private void hideSplash() {
+        if (splashBox != null) splashBox.setVisibility(View.GONE);
+        if (splashBottom != null) splashBottom.setVisibility(View.GONE);
+    }
+
+    /**
+     * 官方 App 的 scheme 是 dragon8662，分享链接一般带 series_id / id。
+     * 只认数字 id，落到 `#/series/<id>`；带 episode_id 就落到播放页。
+     */
+    private String routeFromUri(Uri uri) {
+        if (uri == null) return null;
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme();
+        if (!scheme.equals("dragon8662") && !scheme.equals("horun")) return null;
+
+        String seriesId = firstNonEmpty(uri.getQueryParameter("series_id"),
+                uri.getQueryParameter("seriesId"), uri.getQueryParameter("id"));
+        if (seriesId == null) {
+            for (String seg : uri.getPathSegments()) {
+                if (seg.matches("\\d{6,25}")) {
+                    seriesId = seg;
+                    break;
+                }
+            }
+        }
+        if (seriesId == null || !seriesId.matches("\\d{6,25}")) {
+            String target = uri.getQueryParameter("url");
+            if (target != null && target.startsWith(NodeCore.BASE_URL)) {
+                return target.substring(NodeCore.BASE_URL.length());
+            }
+            return DEFAULT_HOME;
+        }
+        String episodeId = firstNonEmpty(uri.getQueryParameter("episode_id"),
+                uri.getQueryParameter("episodeId"));
+        if (episodeId != null && episodeId.matches("\\d{6,25}")) {
+            String no = firstNonEmpty(uri.getQueryParameter("no"), uri.getQueryParameter("episode_no"));
+            if (no == null || !no.matches("\\d{1,4}")) no = "1";
+            return "/#/play/" + seriesId + "/" + episodeId + "/" + no;
+        }
+        return "/#/series/" + seriesId;
+    }
+
+    private static String firstNonEmpty(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isEmpty()) return v;
+        }
+        return null;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String hash = routeFromUri(intent == null ? null : intent.getData());
+        if (hash == null) return;
+        pendingHash = hash;
+        if (NodeCore.isReady() && web != null) web.loadUrl(NodeCore.BASE_URL + hash);
+    }
+
+    /** 浅色/深色两种系统栏，官方剧场/我的用白底黑字，推荐/播放用黑底白字。 */
+    private void applyBars(boolean light) {
+        lightBars = light;
+        if (customView != null) return;
+        int color = light ? 0xFFFFFFFF : 0xFF0A0908;
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(color);
+        View decor = getWindow().getDecorView();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(light ? mask : 0, mask);
+                // 状态栏保留，导航栏隐藏；内容按系统栏 inset 排版，状态栏不会盖住页面
+                controller.show(WindowInsets.Type.statusBars());
+                controller.hide(WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+            return;
+        }
+        int flags = decor.getSystemUiVisibility();
+        flags |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        if (light) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        } else {
+            flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (light) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+        }
+        decor.setSystemUiVisibility(flags);
     }
 
     private void showError(String message) {
@@ -245,6 +372,7 @@ public class MainActivity extends Activity {
                 + (logs.isEmpty() ? "" : "\n\n" + logs));
         retryBtn.setEnabled(true);
         errorBox.setVisibility(View.VISIBLE);
+        applyBars(false);
     }
 
     private void hideError() {
@@ -263,13 +391,14 @@ public class MainActivity extends Activity {
     }
 
     private void showSystemUi() {
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        applyBars(lightBars);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web == null) return;
+        applyBars(lightBars);
         if (NodeCore.isReady()) {
             hideError();
             loadHome();
@@ -327,6 +456,13 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void toast(String message) {
             runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+        }
+
+        /** 页面切到剧场/我的时传 light，推荐/播放传 dark；官方是两套系统栏配色。 */
+        @JavascriptInterface
+        public void setBars(String mode) {
+            boolean light = "light".equals(mode);
+            runOnUiThread(() -> applyBars(light));
         }
     }
 }

@@ -9,4 +9,8 @@
     <color name="text3">#7A7168</color>
     <color name="glass">#1C1917</color>
     <color name="glass_border">#33FFFFFF</color>
+    <!-- 官方闪屏是暖白底 + 左上橙、右侧青的柔光渐变 -->
+    <color name="splash_bg">#FFFDF8</color>
+    <color name="splash_text">#171412</color>
+    <color name="splash_sub">#8C8378</color>
 </resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 对齐官方 style/db 的闪屏：暖白底，左上橙光、右侧青光 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:centerColor="#FFF4EA"
+        android:endColor="#E9FAF2"
+        android:startColor="#FFFFFC"
+        android:type="linear" />
+</shape>

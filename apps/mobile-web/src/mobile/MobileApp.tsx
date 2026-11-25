@@ -98,6 +98,12 @@ export function MobileApp(): JSX.Element {
     };
   }, [sync]);
 
+  // 系统栏跟着页面走：官方推荐/播放是黑底白字，剧场/我的/搜索是白底黑字
+  useEffect(() => {
+    const dark = playRoute !== null || route === 'feed';
+    window.HorunAndroid?.setBars?.(dark ? 'dark' : 'light');
+  }, [route, playRoute, detailId]);
+
   const go = useCallback((next: MRoute) => {
     const hash = hashOfRoute(next);
     if (location.hash === hash) return;

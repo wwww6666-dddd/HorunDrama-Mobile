@@ -58,6 +58,8 @@ export interface HorunAndroidBridge {
   setServerUrl: (url: string) => void;
   openSetup: () => void;
   toast: (message: string) => void;
+  /** 系统栏配色：剧场/我的 light，推荐/播放 dark */
+  setBars?: (mode: 'light' | 'dark') => void;
 }
 
 declare global {
