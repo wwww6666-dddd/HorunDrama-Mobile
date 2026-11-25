@@ -11,6 +11,7 @@ import { About, Search } from './pages/Search.tsx';
 import { Home } from './pages/Home.tsx';
 import { Library } from './pages/Library.tsx';
 import { Me } from './pages/Me.tsx';
+import { MeSettings } from './pages/MeSettings.tsx';
 import { Category, Downloads, NewReleases } from './pages/Misc.tsx';
 import { Rank } from './pages/Rank.tsx';
 
@@ -22,6 +23,7 @@ const PAGES: Record<MRoute, () => JSX.Element> = {
   rank: Rank,
   library: Library,
   me: Me,
+  settings: MeSettings,
   search: Search,
   about: About,
   new: NewReleases,
@@ -35,6 +37,7 @@ const LABEL: Record<MRoute, string> = {
   rank: '榜单',
   library: '追剧',
   me: '我的',
+  settings: '设置',
   search: '搜索',
   about: '关于',
   new: '新剧日历',

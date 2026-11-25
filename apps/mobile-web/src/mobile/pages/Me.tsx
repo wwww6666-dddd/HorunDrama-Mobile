@@ -1,377 +1,376 @@
-import { useEffect, useRef, useState } from 'react';
-import type { JSX, MouseEvent } from 'react';
-import { api, type Settings as SettingsData } from '../../api.ts';
+import { useEffect, useMemo, useState } from 'react';
+import type { JSX } from 'react';
+import { api } from '../../api.ts';
+import type { DownloadItem, FavoriteEntry, FollowEntry, LikeEntry, ProgressEntry, ReservationEntry } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
+import { useApp } from '../../store.ts';
 import { useNav } from '../nav.tsx';
-import { Group, Icon, Row, Segmented, Sheet, Switch } from '../ui.tsx';
-import { useApp, type Accent } from '../../store.ts';
+import { Icon, Sheet } from '../ui.tsx';
+import { LoginSheet } from '../LoginSheet.tsx';
 
-const ACCENTS: Array<{ value: Accent; label: string; color: string }> = [
-  { value: 'ember', label: '暖橙', color: '#ff4d2e' },
-  { value: 'jade', label: '青玉', color: '#2fbf9b' },
-  { value: 'violet', label: '暮紫', color: '#8b5cf6' },
-  { value: 'azure', label: '远蓝', color: '#3b82f6' },
+type MeTab = 'history' | 'fav' | 'likes' | 'reserve';
+type MeFilter = 'all' | 'done' | 'todo';
+
+interface MeCard {
+  seriesId: string;
+  title: string;
+  cover: string;
+  meta: string;
+  badge?: string;
+  episodeId?: string;
+  episodeNo?: number;
+  ratio?: number;
+  updatedAt?: number;
+}
+
+const TABS: Array<{ key: MeTab; label: string }> = [
+  { key: 'history', label: '历史' },
+  { key: 'fav', label: '收藏' },
+  { key: 'likes', label: '点赞' },
+  { key: 'reserve', label: '预约' },
 ];
 
-function mb(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const EMPTY_TEXT: Record<MeTab, string> = {
+  history: '还没有观看记录',
+  fav: '还没有收藏的剧',
+  likes: '还没有点过赞',
+  reserve: '还没有预约的剧',
+};
+
+const coverOf = (cover: string, seriesId: string): string => (cover !== '' ? cover : `/api/poster/${seriesId}`);
+
+function countText(value: number): string {
+  if (value >= 10000) return `${(value / 10000).toFixed(1)}万`;
+  return String(value);
+}
+
+function toCard(entry: ProgressEntry | FavoriteEntry | LikeEntry | FollowEntry | ReservationEntry, tab: MeTab): MeCard {
+  if (tab === 'history') {
+    const item = entry as ProgressEntry;
+    const ratio = item.durationSec > 0 ? Math.min(1, item.positionSec / item.durationSec) : 0;
+    return {
+      seriesId: item.seriesId,
+      title: item.seriesTitle,
+      cover: coverOf(item.cover, item.seriesId),
+      meta: `看到第 ${item.episodeNo} 集`,
+      episodeId: item.episodeId,
+      episodeNo: item.episodeNo,
+      ratio,
+      updatedAt: item.updatedAt,
+    };
+  }
+  if (tab === 'fav' || tab === 'likes') {
+    const item = entry as FavoriteEntry | LikeEntry;
+    return {
+      seriesId: item.seriesId,
+      title: item.seriesTitle,
+      cover: coverOf(item.cover, item.seriesId),
+      meta: `${item.episodeCount} 集`,
+      updatedAt: item.updatedAt,
+    };
+  }
+  if (tab === 'reserve') {
+    const item = entry as ReservationEntry;
+    return {
+      seriesId: item.seriesId,
+      title: item.seriesTitle,
+      cover: coverOf(item.cover, item.seriesId),
+      meta: item.online ? `已上线 · ${item.episodeCount} 集` : `待上线 · ${item.episodeCount} 集`,
+      badge: item.online ? '已上线' : '待播',
+      updatedAt: item.updatedAt,
+    };
+  }
+  const follow = entry as FollowEntry;
+  return {
+    seriesId: follow.seriesId,
+    title: follow.seriesTitle,
+    cover: coverOf(follow.cover, follow.seriesId),
+    meta: `更到 ${follow.latestCount} 集`,
+    badge: follow.hasNew ? '有新集' : undefined,
+    updatedAt: follow.updatedAt,
+  };
+}
+
+function Cards({ tab, filter }: { tab: MeTab; filter: MeFilter }): JSX.Element {
+  const { data, error, loading, reload } = useAsync<MeCard[]>(async (signal) => {
+    if (tab === 'history') {
+      const items = await api.continueWatching(60, signal);
+      return items.map((item) => toCard(item, 'history'));
+    }
+    if (tab === 'fav') {
+      const items = await api.favorites(signal);
+      return items.map((item) => toCard(item, 'fav'));
+    }
+    if (tab === 'likes') {
+      const items = await api.likes(signal);
+      return items.map((item) => toCard(item, 'likes'));
+    }
+    const items = await api.reservations(signal);
+    return items.map((item) => toCard(item, 'reserve'));
+  }, [tab]);
+
+  const rows = useMemo(() => {
+    const all = data ?? [];
+    if (tab !== 'history' || filter === 'all') return all;
+    const done = all.filter((item) => (item.ratio ?? 0) >= 0.95);
+    return filter === 'done' ? done : all.filter((item) => (item.ratio ?? 0) < 0.95);
+  }, [data, filter, tab]);
+
+  if (loading) {
+    return (
+      <div className="mm-grid" aria-busy="true">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div className="mm-sk" key={i}>
+            <div className="mm-sk__poster" />
+            <div className="mm-sk__line" />
+            <div className="mm-sk__line mm-sk__line--short" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error !== null) {
+    return (
+      <div className="mm-empty">
+        <p>加载失败：{error}</p>
+        <button type="button" onClick={reload}>
+          重试
+        </button>
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="mm-empty">
+        <Icon name={tab === 'history' ? 'clock' : tab === 'fav' ? 'heart' : tab === 'likes' ? 'heart' : 'bookmark'} size={28} />
+        <p>{EMPTY_TEXT[tab]}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mm-grid">
+      {rows.map((row) => (
+        <MeCardView key={row.seriesId} row={row} tab={tab} />
+      ))}
+    </div>
+  );
+}
+
+function MeCardView({ row, tab }: { row: MeCard; tab: MeTab }): JSX.Element {
+  const { openDetail, play } = useNav();
+  return (
+    <div
+      className="mm-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => openDetail(row.seriesId)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') openDetail(row.seriesId);
+      }}
+    >
+      <div className="mm-poster">
+        <img src={row.cover} alt="" loading="lazy" />
+        {row.badge !== undefined && <span className="mm-badge">{row.badge}</span>}
+        {tab === 'history' && row.episodeId !== undefined && row.episodeNo !== undefined && (
+          <button
+            type="button"
+            className="mm-continue"
+            aria-label="继续观看"
+            onClick={(e) => {
+              e.stopPropagation();
+              play(row.seriesId, row.episodeId as string, row.episodeNo as number);
+            }}
+          >
+            <Icon name="play" size={14} />
+          </button>
+        )}
+      </div>
+      <h3>{row.title}</h3>
+      <p>{row.meta}</p>
+    </div>
+  );
 }
 
 export function Me(): JSX.Element {
+  const { account, refreshAccount, setLibraryTab } = useApp();
   const { go } = useNav();
-  const theme = useApp((s) => s.theme);
-  const toggleTheme = useApp((s) => s.toggleTheme);
-  const accent = useApp((s) => s.accent);
-  const setAccent = useApp((s) => s.setAccent);
-  const account = useApp((s) => s.account);
-  const refreshAccount = useApp((s) => s.refreshAccount);
-  const setAccount = useApp((s) => s.setAccount);
-
-  const settings = useAsync((signal) => api.settings(signal), []);
-  const cache = useAsync((signal) => api.cacheStats(signal), []);
-  const [draft, setDraft] = useState<SettingsData | null>(null);
+  const [tab, setTab] = useState<MeTab>('history');
+  const [filter, setFilter] = useState<MeFilter>('all');
   const [loginOpen, setLoginOpen] = useState(false);
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  /** 「设置」快捷卡滚到这里（播放 + 外观两组，阶段 A 不做独立设置页） */
-  const settingsRef = useRef<HTMLDivElement | null>(null);
-
-  // 手机号登录
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [smsCodeKey, setSmsCodeKey] = useState('');
-  const [smsMfa, setSmsMfa] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     void refreshAccount();
   }, [refreshAccount]);
 
-  useEffect(() => {
-    if (settings.data !== null) setDraft(settings.data);
-  }, [settings.data]);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = window.setTimeout(() => setCountdown((n) => n - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [countdown]);
-
-  const patch = (next: Partial<SettingsData>): void => {
-    setDraft((prev) => ({ ...(prev ?? (settings.data as SettingsData)), ...next }));
-    void api
-      .saveSettings(next)
-      .then(() => settings.reload())
-      .catch((err: unknown) => setNote(`保存失败：${(err as Error).message}`));
-  };
-
-  const sendCode = async (): Promise<void> => {
-    setBusy(true);
-    setNote('正在发送验证码…');
-    try {
-      const res = await api.accountSendCode(phone);
-      setNote(res.message);
-      if (res.ok) {
-        setCountdown(60);
-        if (res.smsCodeKey !== undefined) setSmsCodeKey(res.smsCodeKey);
-        setCode('');
-        setSmsMfa(false);
-      }
-    } catch (err) {
-      setNote(`发送失败：${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const login = async (): Promise<void> => {
-    setBusy(true);
-    setNote('登录中…');
-    try {
-      const res = await api.accountLoginSms(phone, code, smsCodeKey);
-      setNote(res.message);
-      if (res.ok) {
-        setCode('');
-        setSmsMfa(false);
-        await refreshAccount();
-        setLoginOpen(false);
-      } else if (res.code === 2046) {
-        setSmsMfa(true);
-      }
-    } catch (err) {
-      setNote(`登录失败：${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const continueSms = async (): Promise<void> => {
-    setBusy(true);
-    setNote('正在验证上行短信…');
-    try {
-      const res = await api.accountContinueSms(phone, code);
-      setNote(res.message);
-      if (res.ok) {
-        await refreshAccount();
-        setLoginOpen(false);
-      }
-    } catch (err) {
-      setNote(`验证失败：${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      await api.accountLogout();
-      setAccount(null);
-      setNote('已退出登录');
-    } catch (err) {
-      setNote(`退出失败：${(err as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /**
-   * 深色/浅色切换：支持 View Transition 的浏览器里，新主题从开关位置圆形扩散；
-   * 不支持就退回瞬间切换（老 WebView 也不会报错）。
-   */
-  const switchTheme = (next: boolean, event: MouseEvent<HTMLButtonElement>): void => {
-    if (next === (theme === 'dark')) return;
-    const doc = document as Document & {
-      startViewTransition?: (run: () => void) => { ready: Promise<void> };
+  const stats = useAsync(async (signal) => {
+    const [fav, follow, downloads, history] = await Promise.all([
+      api.favorites(signal),
+      api.follows(signal),
+      api.downloads(signal),
+      api.continueWatching(60, signal),
+    ]);
+    return {
+      fav: fav.length,
+      follow: follow.length,
+      download: downloads.items.filter((item: DownloadItem) => item.status === 'ready').length,
+      history: history.length,
     };
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion || typeof doc.startViewTransition !== 'function') {
-      toggleTheme();
-      return;
-    }
-    const x = event.clientX;
-    const y = event.clientY;
-    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-    const transition = doc.startViewTransition(() => toggleTheme());
-    void transition.ready
-      .then(() => {
-        document.documentElement.animate(
-          [
-            { clipPath: `circle(0px at ${x}px ${y}px)` },
-            { clipPath: `circle(${radius}px at ${x}px ${y}px)` },
-          ],
-          {
-            duration: 520,
-            easing: 'cubic-bezier(0.32, 0.72, 0, 1)',
-            pseudoElement: '::view-transition-new(root)',
-          } as KeyframeAnimationOptions & { pseudoElement: string },
-        );
-      })
-      .catch(() => {
-        /* View Transition 被系统打断时不影响主题已经切过去的事实 */
-      });
-  };
+  }, [account !== null && account.loggedIn]);
 
-  const data = draft ?? settings.data;
-  const speed = data?.defaultSpeed ?? 1;
+  const loggedIn = account !== null && account.loggedIn;
+  const nickname = loggedIn ? (account.nickname !== '' ? account.nickname : '已登录') : '未登录';
+  const userId = loggedIn ? account.userId : '';
+  const avatar = loggedIn ? account.avatar : '';
+
+  const quick: Array<{ label: string; sub: string; onClick: () => void }> = [
+    { label: '下载', sub: '离线缓存', onClick: () => go('downloads') },
+    { label: '收藏', sub: '我的收藏', onClick: () => setTab('fav') },
+    {
+      label: '追更',
+      sub: '有新集',
+      onClick: () => {
+        setLibraryTab('follow');
+        go('library');
+      },
+    },
+    { label: '预约', sub: '预约记录', onClick: () => setTab('reserve') },
+    { label: '设置', sub: '播放与外观', onClick: () => go('settings') },
+  ];
 
   return (
-    <>
-      <button type="button" className="m-profile" onClick={() => (account?.loggedIn === true ? void refreshAccount() : setLoginOpen(true))}>
-        {account?.loggedIn === true && account.avatar !== '' ? (
-          <img className="m-profile__avatar" src={account.avatar} alt="" />
-        ) : (
-          <span className="m-profile__avatar m-profile__avatar--empty">
-            <Icon name="me" size={24} />
-          </span>
-        )}
-        <span className="m-profile__main">
-          <span className="m-profile__name">{account?.loggedIn === true ? account.nickname || '已登录' : '未登录'}</span>
-          <span className="m-profile__hint">
-            {account?.loggedIn === true ? '点一下同步账号数据' : '登录后收藏、进度跟账号同步'}
-          </span>
-        </span>
-        <span className="m-profile__chev">
-          <Icon name="chevron" size={18} />
-        </span>
-      </button>
+    <div className="mm-me">
+      <section className="mm-hero">
+        <div className="mm-hero__top">
+          <button type="button" className="mm-moon" aria-label="外观设置" onClick={() => go('settings')}>
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a8.5 8.5 0 1 0 10.8 10.8z" />
+            </svg>
+          </button>
+          <button type="button" className="mm-menu" aria-label="设置" onClick={() => go('settings')}>
+            <span />
+            <span />
+            <span />
+            <i />
+          </button>
+        </div>
 
-      {/* 快捷卡（阶段 A）：下载 / 收藏 / 追更 / 设置 */}
-      <div className="m-me-cards">
-        <button type="button" className="m-me-card" onClick={() => go('downloads')}>
-          <Icon name="download" size={19} />
-          <span>下载</span>
-        </button>
-        <button type="button" className="m-me-card" onClick={() => go('library')}>
-          <Icon name="heart" size={19} />
-          <span>收藏</span>
-        </button>
-        <button type="button" className="m-me-card" onClick={() => go('library')}>
-          <Icon name="bookmark" size={19} />
-          <span>追更</span>
-        </button>
-        <button
-          type="button"
-          className="m-me-card"
-          onClick={() => settingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-        >
-          <Icon name="settings" size={19} />
-          <span>设置</span>
-        </button>
+        <div className="mm-profile">
+          <div className={avatar !== '' ? 'mm-avatar' : 'mm-avatar mm-avatar--empty'}>
+            {avatar !== '' ? <img src={avatar} alt="" /> : <span>{nickname.slice(0, 1)}</span>}
+          </div>
+          <div className="mm-info">
+            <h1>{nickname}</h1>
+            <p>{loggedIn ? `Horun 号：${userId}` : '登录后同步收藏、进度和追更'}</p>
+          </div>
+        </div>
+
+        <div className="mm-stats">
+          <button type="button" className="mm-stat" onClick={() => setTab('fav')}>
+            <b>{stats.data === null ? '—' : countText(stats.data.fav)}</b>
+            <span>收藏</span>
+          </button>
+          <button
+            type="button"
+            className="mm-stat"
+            onClick={() => {
+              setLibraryTab('follow');
+              go('library');
+            }}
+          >
+            <b>{stats.data === null ? '—' : countText(stats.data.follow)}</b>
+            <span>追更</span>
+          </button>
+          <button type="button" className="mm-stat" onClick={() => go('downloads')}>
+            <b>{stats.data === null ? '—' : countText(stats.data.download)}</b>
+            <span>下载</span>
+          </button>
+          <button type="button" className="mm-edit" onClick={() => (loggedIn ? go('settings') : setLoginOpen(true))}>
+            {loggedIn ? '编辑资料' : '登录'}
+          </button>
+        </div>
+      </section>
+
+      <div className="mm-quick">
+        {quick.map((item) => (
+          <button type="button" key={item.label} className="mm-quick__item" onClick={item.onClick}>
+            <b>{item.label}</b>
+            <span>{item.sub}</span>
+          </button>
+        ))}
       </div>
 
-      {account?.loggedIn === true ? (
-        <Group title="账号">
-          <Row
-            label="同步账号数据"
-            hint="收藏 / 历史 / 追更 / 预约"
-            right={<Icon name="refresh" size={16} />}
-            onClick={() => {
-              void api
-                .accountSync(true)
-                .then((r) => setNote(r.message))
-                .catch((err: unknown) => setNote(`同步失败：${(err as Error).message}`));
-            }}
-          />
-          <Row label="退出登录" onClick={() => void logout()} right={<span className="m-row__danger">退出</span>} />
-        </Group>
-      ) : (
-        <Group title="账号">
-          <Row label="手机号登录" hint="本机不需要密码" right={<span className="m-btn m-btn--mini m-btn--primary">登录</span>} onClick={() => setLoginOpen(true)} />
-        </Group>
-      )}
-
-      {/* 「设置」快捷卡的落点：播放 + 外观两组从这里开始 */}
-      <div ref={settingsRef} />
-
-      <Group title="播放">
-        <Row
-          label="自动播放下一集"
-          hint="一集播完直接进入下一集"
-          right={<Switch on={data?.autoPlayNext !== false} onChange={(v) => patch({ autoPlayNext: v })} />}
-        />
-        <Row label="默认倍速" hint={`当前 ${speed === 1 ? '1×' : `${speed}×`}`} />
-        <div className="m-row m-row--stack">
-          <Segmented
-            items={[
-              { value: '0.75', label: '0.75×' },
-              { value: '1', label: '1×' },
-              { value: '1.25', label: '1.25×' },
-              { value: '1.5', label: '1.5×' },
-              { value: '2', label: '2×' },
-            ]}
-            value={String(speed)}
-            onChange={(v) => patch({ defaultSpeed: Number(v) })}
-          />
-        </div>
-        <Row
-          label="新集提醒"
-          hint="在追剧页给有新集的剧打标"
-          right={<Switch on={data?.notifyNewEpisodes !== false} onChange={(v) => patch({ notifyNewEpisodes: v })} />}
-        />
-      </Group>
-
-      <Group title="外观">
-        <Row label="深色玻璃" hint={theme === 'dark' ? '当前：深色' : '当前：浅色'} right={<Switch on={theme === 'dark'} onChange={(next, event) => switchTheme(next, event)} />} />
-        <div className="m-row m-row--stack">
-          <span className="m-row__label">主题色</span>
-          <div className="m-swatches">
-            {ACCENTS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className="m-swatch"
-                data-active={accent === item.value}
-                style={{ background: item.color }}
-                aria-label={item.label}
-                onClick={() => setAccent(item.value)}
-              >
-                {accent === item.value && <Icon name="check" size={14} />}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Group>
-
-      <Group title="电脑连接">
-        <Row
-          label="服务地址"
-          hint={window.HorunAndroid?.getServerUrl() ?? location.origin}
-          right={
-            window.HorunAndroid === undefined ? undefined : (
-              <button className="m-btn m-btn--mini" type="button" onClick={() => window.HorunAndroid?.openSetup()}>
-                切换
-              </button>
-            )
-          }
-        />
-        <div className="m-note">手机只负责显示和操作，解码、下载、签名都在电脑上跑。电脑关机或退出核心，这部手机就连不上。</div>
-      </Group>
-
-      <Group title="存储">
-        <Row label="媒体缓存" hint={cache.data !== null ? `${cache.data.media.count} 个文件 · ${mb(cache.data.media.bytes)}` : '读取中'} />
-        <Row
-          label="清理缓存"
-          right={<span className="m-btn m-btn--mini">清理</span>}
-          onClick={() => {
-            void api
-              .clearCache('all')
-              .then(() => {
-                setNote('缓存已清理');
-                cache.reload();
-              })
-              .catch((err: unknown) => setNote(`清理失败：${(err as Error).message}`));
-          }}
-        />
-        <Row label="下载管理" chevron onClick={() => go('downloads')} />
-      </Group>
-
-      <Group title="更多">
-        <Row label="关于 HorunDrama 手机端" chevron onClick={() => go('about')} />
-        <Row label="新剧日历" chevron onClick={() => go('new')} />
-        <Row label="分类筛选" chevron onClick={() => go('category')} />
-      </Group>
-
-      {(note !== '' || busy) && <div className="m-note m-note--live">{busy ? '处理中…' : note}</div>}
-
-      <p className="m-foot">本地测试版 · 数据都在你自己的电脑上</p>
-
-      <Sheet open={loginOpen} onClose={() => setLoginOpen(false)} title="手机号登录">
-        <div className="m-form">
-          <input
-            className="m-input"
-            inputMode="numeric"
-            maxLength={11}
-            placeholder="手机号"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
-          />
-          <div className="m-form__row">
-            <input
-              className="m-input"
-              inputMode="numeric"
-              maxLength={8}
-              placeholder="验证码"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            />
-            <button className="m-btn" type="button" disabled={busy || countdown > 0 || phone.length !== 11} onClick={() => void sendCode()}>
-              {countdown > 0 ? `${countdown}s` : '获取'}
+      <section className="mm-library">
+        <div className="mm-tabs">
+          {TABS.map((item) => (
+            <button type="button" key={item.key} className="mm-tab" data-active={tab === item.key} onClick={() => setTab(item.key)}>
+              {item.label}
             </button>
-          </div>
-          {smsMfa && (
-            <button className="m-btn" type="button" disabled={busy} onClick={() => void continueSms()}>
-              我已发送上行短信
-            </button>
-          )}
-          <button className="m-btn m-btn--primary m-btn--block" type="button" disabled={busy || phone.length !== 11 || code === ''} onClick={() => void login()}>
-            登录
+          ))}
+          <button type="button" className="mm-tab-search" aria-label="搜索" onClick={() => go('search')}>
+            <Icon name="search" size={19} />
           </button>
-          {note !== '' && <p className="m-form__note">{note}</p>}
+        </div>
+
+        {tab === 'history' && (
+          <div className="mm-chips">
+            <button type="button" data-active={filter === 'all'} onClick={() => setFilter('all')}>
+              全部
+            </button>
+            <button type="button" data-active={filter === 'done'} onClick={() => setFilter('done')}>
+              已看完
+            </button>
+            <button type="button" data-active={filter === 'todo'} onClick={() => setFilter('todo')}>
+              未看完
+            </button>
+            <span className="mm-chips__tools">
+              <button type="button" onClick={() => setFilterOpen(true)}>
+                筛选
+              </button>
+              <button type="button" onClick={() => go('settings')}>
+                编辑
+              </button>
+            </span>
+          </div>
+        )}
+
+        <Cards tab={tab} filter={filter} />
+      </section>
+
+      <Sheet open={filterOpen} onClose={() => setFilterOpen(false)} title="筛选">
+        <div className="mm-filter">
+          {(
+            [
+              ['all', '全部'],
+              ['done', '已看完'],
+              ['todo', '未看完'],
+            ] as Array<[MeFilter, string]>
+          ).map(([key, label]) => (
+            <button
+              type="button"
+              key={key}
+              data-active={filter === key}
+              onClick={() => {
+                setFilter(key);
+                setFilterOpen(false);
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </Sheet>
-    </>
+
+      <LoginSheet
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onDone={() => {
+          stats.reload();
+        }}
+      />
+    </div>
   );
 }
-

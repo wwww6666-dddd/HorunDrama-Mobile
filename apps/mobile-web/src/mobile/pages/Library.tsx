@@ -4,6 +4,7 @@ import { api } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Segmented, Skeleton } from '../ui.tsx';
+import { useApp } from '../../store.ts';
 
 interface LibCard {
   seriesId: string;
@@ -17,7 +18,8 @@ interface LibCard {
 
 export function Library(): JSX.Element {
   const { openDetail, play, go } = useNav();
-  const [tab, setTab] = useState<'fav' | 'history' | 'likes' | 'follow'>('fav');
+  const initialTab = useApp((s) => s.libraryTab);
+  const [tab, setTab] = useState<'fav' | 'history' | 'likes' | 'follow'>(initialTab);
 
   const list = useAsync<LibCard[]>(async (signal) => {
     if (tab === 'fav') {

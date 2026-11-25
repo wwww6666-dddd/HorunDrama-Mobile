@@ -1,4 +1,4 @@
-﻿# 手机端 APK 构建：aapt2 → javac → d8 → zipalign → apksigner（不依赖 Gradle/AGP，离线可重复）
+# 手机端 APK 构建：aapt2 → javac → d8 → zipalign → apksigner（不依赖 Gradle/AGP，离线可重复）
 # 用法：powershell -ExecutionPolicy Bypass -File .\android\build.ps1
 #
 # 注意：aapt2 / apksigner 在 Windows 上不认非 ASCII 路径（本工程目录名是中文），
@@ -18,9 +18,9 @@ $runtimeStage = Join-Path $root '.tmp\runtime-stage'
 $stage = 'D:\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
-$apk = Join-Path $work 'HorunDrama-mobile-1.1.0.apk'
-$versionCode = 3
-$versionName = '1.1.1'
+$apk = Join-Path $work 'HorunDrama-mobile-1.1.2.apk'
+$versionCode = 4
+$versionName = '1.1.2'
 
 foreach ($need in @("$JDK\bin\javac.exe", "$BT\aapt2.exe", "$BT\d8.bat", "$BT\apksigner.bat", "$BT\zipalign.exe", $AJAR, (Join-Path $runtimeStage 'assets'), (Join-Path $runtimeStage 'jniLibs'))) {
   if (-not (Test-Path $need)) { throw "缺少构建素材: $need（先跑 .\android\prepare-runtime.ps1）" }
@@ -153,3 +153,4 @@ Write-Host ''
 Write-Host "APK: $finalPath"
 Write-Host "大小: $([math]::Round($size / 1MB, 2)) MB"
 Write-Host "SHA-256: $hash"
+

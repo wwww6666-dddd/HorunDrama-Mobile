@@ -12,7 +12,7 @@ const BASE = process.argv[2] ?? 'http://127.0.0.1:5881';
 const CASES = [
   ['#/', 'home', '根路径 = 剧场'],
   ['#/theater', 'home', '老「剧场」别名'],
-  ['#/settings', 'me', '老「设置」别名'],
+  ['#/settings', 'settings', '设置页（B3 起独立）'],
   ['#/persons', 'rank', '老「演员榜」别名'],
   ['#/rank', 'rank', '榜单（二级页仍在）'],
   ['#/library', 'library', '追剧'],

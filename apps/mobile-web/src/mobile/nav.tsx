@@ -2,7 +2,18 @@
 
 import { createContext, useContext } from 'react';
 
-export type MRoute = 'home' | 'feed' | 'rank' | 'library' | 'me' | 'search' | 'about' | 'new' | 'category' | 'downloads';
+export type MRoute =
+  | 'home'
+  | 'feed'
+  | 'rank'
+  | 'library'
+  | 'me'
+  | 'settings'
+  | 'search'
+  | 'about'
+  | 'new'
+  | 'category'
+  | 'downloads';
 
 /**
  * 底栏 4 个 Tab，顺序按官方：首页（推荐流）、剧场（书城）、追剧、我的。
@@ -24,7 +35,7 @@ const ALIAS: Record<string, MRoute> = {
   rank: 'rank',
   library: 'library',
   me: 'me',
-  settings: 'me',
+  settings: 'settings',
   search: 'search',
   about: 'about',
   new: 'new',
