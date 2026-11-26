@@ -886,6 +886,8 @@ function FeedSlide({
   const [danmakuText, setDanmakuText] = useState('');
   const [danmakuPrefs, setDanmakuPrefs] = useState<DanmakuPrefs>(() => readDanmakuPrefs());
   const [time, setTime] = useState(0);
+  /** 播放器回报的真实时长；job.durationSec 缺失/为 0 时用它兜底，进度条才会动 */
+  const [liveDuration, setLiveDuration] = useState(0);
   const [liked, setLiked] = useState(false);
   const [digg, setDigg] = useState(item.diggCount);
   const [favorited, setFavorited] = useState(false);
@@ -948,6 +950,7 @@ function FeedSlide({
       setJob(null);
       setTime(0);
       timeRef.current = 0;
+      setLiveDuration(0);
       setStartAt(0);
       qualitySeek.current = null;
       setAspect(16 / 9);
@@ -1185,8 +1188,9 @@ function FeedSlide({
 
   const ready = url !== '';
   const waiting = active && !ready && error === '';
-  /** 底部细进度线：只有拿到时长才画，直连流时长可能是 0 */
-  const progress = job !== null && job.durationSec > 0 ? Math.min(1, Math.max(0, time / job.durationSec)) : 0;
+  /** 底部细进度线：job 时长缺失时用播放器回报的真实时长，避免整条一直停在 0 */
+  const totalSec = liveDuration > 0 ? liveDuration : job !== null ? job.durationSec : 0;
+  const progress = totalSec > 0 ? Math.min(1, Math.max(0, time / totalSec)) : 0;
 
   // 按真实视频比例把画面装进舞台：横屏 16:9、竖屏 9:16 都不会把控制条拉成全宽
   const frameStyle = useMemo(() => {
@@ -1232,9 +1236,10 @@ function FeedSlide({
             onReady={onReady}
             onPrev={onPrev}
             onNext={onNext}
-            onTime={(t) => {
+            onTime={(t, d) => {
               timeRef.current = t;
               setTime(t);
+              if (d > 0 && Math.abs(d - liveDuration) > 0.5) setLiveDuration(d);
             }}
             onPlaying={setPlaying}
             onEnded={() => {

@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
     private String pendingHash = DEFAULT_HOME;
     /** 当前状态栏是浅色还是深色（全屏视频退出后要恢复） */
     private boolean lightBars;
+    /** 视频页/推荐页允许跟随传感器横屏；其他页面锁定竖屏 */
+    private boolean orientationAuto;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -196,7 +198,9 @@ public class MainActivity extends Activity {
                 if (customViewCallback != null) customViewCallback.onCustomViewHidden();
                 customViewCallback = null;
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                setRequestedOrientation(orientationAuto
+                        ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                        : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 showSystemUi();
             }
         };
@@ -460,11 +464,36 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
         }
 
-        /** 页面切到剧场/我的时传 light，推荐/播放传 dark；官方是两套系统栏配色。 */
+        /** 系统栏配色：剧场/我的 light，推荐/播放 dark。 */
         @JavascriptInterface
         public void setBars(String mode) {
             boolean light = "light".equals(mode);
             runOnUiThread(() -> applyBars(light));
+        }
+
+        /**
+         * 横屏适配：视频页传 auto 跟随传感器，离开视频页传 portrait 锁回竖屏。
+         * 只由网页按路由调用，不改变设置/剧场等非播放页的竖屏体验。
+         */
+        @JavascriptInterface
+        public void setOrientation(String mode) {
+            final boolean auto = "auto".equals(mode);
+            runOnUiThread(() -> {
+                orientationAuto = auto;
+                setRequestedOrientation(auto
+                        ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                        : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            });
+        }
+
+        /** 横屏播放时隐藏状态栏/导航栏；回到竖屏或离开播放器时恢复。 */
+        @JavascriptInterface
+        public void setImmersive(boolean immersive) {
+            runOnUiThread(() -> {
+                if (customView != null) return;
+                if (immersive) hideSystemUi();
+                else showSystemUi();
+            });
         }
 
         /** 系统字号缩放（WebView textZoom），90~125，立即生效并持久化。 */

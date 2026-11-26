@@ -80,6 +80,8 @@ export function MobileApp(): JSX.Element {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** 视频相关路由：推荐流和播放页允许横屏，其他页面保持竖屏 */
+  const videoRoute = playRoute !== null || route === 'feed';
 
   const sync = useCallback(() => {
     const nextPlay = parsePlay(location.hash);
@@ -134,6 +136,58 @@ export function MobileApp(): JSX.Element {
     const dark = playRoute !== null || route === 'feed' || theme === 'dark';
     window.HorunAndroid?.setBars?.(dark ? 'dark' : 'light');
   }, [route, playRoute, detailId, theme]);
+
+  // 横屏只在视频路由开放：进入推荐流/播放页跟随传感器，离开就锁回竖屏。
+  // 浏览器里没有原生桥，方向交给浏览器自己处理。
+  useEffect(() => {
+    window.HorunAndroid?.setOrientation?.(videoRoute ? 'auto' : 'portrait');
+  }, [videoRoute]);
+
+  // 横竖屏切换：给根节点打标记，驱动横屏布局 + 转场动画；横屏视频页同时进沉浸式全屏。
+  useEffect(() => {
+    const query = window.matchMedia('(orientation: landscape)');
+    let rotateTimer: number | null = null;
+
+    const apply = (animate: boolean): void => {
+      const landscape = query.matches;
+      const root = document.documentElement;
+      root.classList.toggle('is-landscape', landscape);
+      if (landscape && videoRoute) window.HorunAndroid?.setImmersive?.(true);
+      else window.HorunAndroid?.setImmersive?.(false);
+      if (!animate) return;
+      root.classList.add('is-rotating');
+      if (rotateTimer !== null) window.clearTimeout(rotateTimer);
+      rotateTimer = window.setTimeout(() => {
+        root.classList.remove('is-rotating');
+        rotateTimer = null;
+      }, 520);
+    };
+
+    apply(false);
+    let lastLandscape = query.matches;
+    const onChange = (): void => {
+      const next = query.matches;
+      apply(next !== lastLandscape);
+      lastLandscape = next;
+    };
+    const onFullscreen = (): void => {
+      if (query.matches && videoRoute) window.HorunAndroid?.setImmersive?.(true);
+    };
+    query.addEventListener?.('change', onChange);
+    window.addEventListener('resize', onChange);
+    window.addEventListener('orientationchange', onChange);
+    document.addEventListener('fullscreenchange', onFullscreen);
+    document.addEventListener('webkitfullscreenchange', onFullscreen);
+    return () => {
+      query.removeEventListener?.('change', onChange);
+      window.removeEventListener('resize', onChange);
+      window.removeEventListener('orientationchange', onChange);
+      document.removeEventListener('fullscreenchange', onFullscreen);
+      document.removeEventListener('webkitfullscreenchange', onFullscreen);
+      document.documentElement.classList.remove('is-landscape', 'is-rotating');
+      if (rotateTimer !== null) window.clearTimeout(rotateTimer);
+    };
+  }, [videoRoute]);
 
   const go = useCallback((next: MRoute) => {
     const hash = hashOfRoute(next);

@@ -24,9 +24,9 @@ $runtimeStage = Join-Path $root '.tmp\runtime-stage'
 $stage = 'D:\horun-android\.tmp\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
-$apk = Join-Path $work 'HorunDrama-mobile-1.3.4.apk'
-$versionCode = 20
-$versionName = '1.3.4'
+$apk = Join-Path $work 'HorunDrama-mobile-1.3.5.apk'
+$versionCode = 21
+$versionName = '1.3.5'
 
 # aapt2 的 --version-code/--version-name 不会覆盖 manifest 里的硬编码值；
 # 这里先卡住，避免出现 build.ps1 写 1.1.3、APK 实际还是旧版本（2026-11-25 遇到过）
@@ -194,6 +194,7 @@ Write-Host ''
 Write-Host "APK: $finalPath"
 Write-Host "大小: $([math]::Round($size / 1MB, 2)) MB"
 Write-Host "SHA-256: $hash"
+
 
 
 

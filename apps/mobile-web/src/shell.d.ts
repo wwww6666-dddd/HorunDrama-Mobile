@@ -60,6 +60,10 @@ export interface HorunAndroidBridge {
   toast: (message: string) => void;
   /** 系统栏配色：剧场/我的 light，推荐/播放 dark */
   setBars?: (mode: 'light' | 'dark') => void;
+  /** 视频页允许横屏（auto）/ 其他页面锁竖屏（portrait） */
+  setOrientation?: (mode: 'auto' | 'portrait') => void;
+  /** 横屏播放时进入沉浸式全屏（隐藏系统栏） */
+  setImmersive?: (on: boolean) => void;
   /** 系统字号缩放：90~125（WebView textZoom） */
   setFontScale?: (percent: number) => void;
   /** 下载更新 APK：url + 文件名 + sha256(可空) + 线程数；内部四线程 Range 分段 */

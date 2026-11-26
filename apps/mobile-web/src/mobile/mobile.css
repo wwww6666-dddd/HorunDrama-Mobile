@@ -22,6 +22,10 @@
   --m-text-3: rgba(246, 241, 234, 0.4);
   --m-accent: var(--ember, #ff5a37);
   --m-accent-soft: var(--accent-soft, rgba(255, 90, 55, 0.16));
+  /* 开关：关态轨道要明显区别于卡片底，开态用实色主题色（不能用 color-mix，Chrome 109 不支持） */
+  --m-switch-off: rgba(255, 255, 255, 0.18);
+  --m-switch-off-border: rgba(255, 255, 255, 0.24);
+  --m-switch-off-text: rgba(255, 255, 255, 0.62);
   --m-safe-top: env(safe-area-inset-top, 0px);
   --m-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m-spring: cubic-bezier(0.32, 1.36, 0.42, 1);
@@ -45,6 +49,9 @@
   --m-text: #1b1714;
   --m-text-2: rgba(27, 23, 20, 0.62);
   --m-text-3: rgba(27, 23, 20, 0.42);
+  --m-switch-off: rgba(27, 23, 20, 0.18);
+  --m-switch-off-border: rgba(27, 23, 20, 0.24);
+  --m-switch-off-text: rgba(27, 23, 20, 0.68);
 }
 
 html.m-mode,
@@ -329,6 +336,8 @@ html.m-mode * {
 
 .m-btn--icon[data-on='true'] {
   color: var(--m-accent);
+  border-color: var(--m-accent-soft);
+  background: var(--m-accent-soft);
   border-color: color-mix(in srgb, var(--m-accent) 40%, transparent);
   background: color-mix(in srgb, var(--m-accent) 12%, transparent);
 }
@@ -398,6 +407,7 @@ html.m-mode * {
 .m-chips--sub .m-chip[data-active='true'] {
   background: transparent;
   color: var(--m-accent);
+  border-color: var(--m-accent);
   border-color: color-mix(in srgb, var(--m-accent) 34%, transparent);
   box-shadow: none;
 }
@@ -467,37 +477,60 @@ html.m-mode * {
   box-shadow: none;
 }
 
-/* 开关：iOS 的尺寸与弹簧 */
+/* 开关：轨道内直接写「开 / 关」，不依赖 color-mix，浅色与深色都一眼能看出状态 */
 .m-switch {
   position: relative;
-  width: 46px;
-  height: 27px;
+  width: 52px;
+  height: 28px;
   padding: 0;
-  border: 1px solid var(--m-line);
+  border: 1px solid var(--m-switch-off-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.09);
-  transition: background 0.24s var(--m-ease), border-color 0.24s var(--m-ease);
+  background: var(--m-switch-off);
+  transition: background 0.24s var(--m-ease), border-color 0.24s var(--m-ease), box-shadow 0.24s var(--m-ease);
+}
+
+.m-switch::after {
+  content: '关';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  translate: 0 -50%;
+  color: var(--m-switch-off-text);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .m-switch span {
   position: absolute;
+  z-index: 1;
   top: 2px;
   left: 2px;
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  transition: transform 0.28s var(--m-spring);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transition: transform 0.28s var(--m-spring), background 0.2s var(--m-ease);
 }
 
 .m-switch[data-on='true'] {
-  border-color: transparent;
-  background: linear-gradient(160deg, var(--m-accent), color-mix(in srgb, var(--m-accent) 72%, #000 28%));
+  border-color: var(--m-accent);
+  background: var(--m-accent);
+  box-shadow: 0 0 0 2px var(--m-accent-soft), 0 4px 12px -4px var(--m-accent);
+}
+
+.m-switch[data-on='true']::after {
+  content: '开';
+  right: auto;
+  left: 8px;
+  color: #fff;
 }
 
 .m-switch[data-on='true'] span {
-  transform: translateX(19px);
+  transform: translateX(24px);
+  background: #fff;
 }
 
 /* ================================ 分组列表 ================================ */
@@ -960,6 +993,7 @@ html.m-mode * {
 .m-lrow__no[data-top='true'] {
   color: var(--m-accent);
   font-size: 16px;
+  text-shadow: 0 0 16px var(--m-accent-soft);
   text-shadow: 0 0 16px color-mix(in srgb, var(--m-accent) 48%, transparent);
 }
 
@@ -1166,6 +1200,9 @@ html.m-mode * {
 .m-profile__avatar--empty {
   display: inline-grid;
   place-items: center;
+  background:
+    radial-gradient(70% 70% at 50% 24%, rgba(255, 255, 255, 0.22), transparent 62%),
+    linear-gradient(155deg, var(--m-accent-soft), rgba(255, 255, 255, 0.04));
   background:
     radial-gradient(70% 70% at 50% 24%, rgba(255, 255, 255, 0.22), transparent 62%),
     linear-gradient(155deg, color-mix(in srgb, var(--m-accent) 26%, rgba(255, 255, 255, 0.1)), rgba(255, 255, 255, 0.04));
@@ -1470,6 +1507,8 @@ html.m-mode * {
 }
 
 .m-ep[data-active='true'] {
+  border-color: var(--m-accent);
+  background: var(--m-accent-soft);
   border-color: color-mix(in srgb, var(--m-accent) 46%, transparent);
   background: color-mix(in srgb, var(--m-accent) 16%, transparent);
   color: #fff;
@@ -1693,11 +1732,13 @@ html.m-mode * {
   width: 54px;
   height: 54px;
   border-radius: 16px;
+  background: var(--m-accent);
   background: linear-gradient(160deg, var(--m-accent), color-mix(in srgb, var(--m-accent) 68%, #000 32%));
   color: #fff;
   font-size: 24px;
   font-weight: 750;
   letter-spacing: -0.02em;
+  box-shadow: 0 10px 24px var(--m-accent-soft), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--m-accent) 32%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
@@ -1841,6 +1882,7 @@ html.m-mode * {
 }
 
 .m-input:focus {
+  border-color: var(--m-accent);
   border-color: color-mix(in srgb, var(--m-accent) 55%, transparent);
 }
 
@@ -1881,6 +1923,7 @@ html.m-mode * {
   border: 0;
   border-radius: 0;
   background: transparent;
+  color: var(--m-text-3);
   color: color-mix(in srgb, var(--m-text) 45%, transparent);
   font-family: var(--m-font);
   font-size: 13.5px;
@@ -2633,7 +2676,7 @@ html.m-mode .m-hero::before {
   background: conic-gradient(
     from var(--m-beam-angle),
     transparent 0deg 268deg,
-    color-mix(in srgb, var(--m-accent) 65%, #fff) 292deg,
+    var(--m-accent) 292deg,
     var(--m-accent) 312deg,
     transparent 336deg 360deg
   );
@@ -6382,6 +6425,7 @@ html.m-mode .m-app .mt-act[data-kind='reserve'] .mt-act__icon {
 
 /* 深色下卡片标签胶囊不能继续用浅色底，否则白底白字看不见 */
 :root[data-theme='dark'] .mt-card__tag {
+  background: var(--m-accent-soft) !important;
   background: color-mix(in srgb, var(--m-accent) 16%, transparent) !important;
   color: var(--m-accent) !important;
 }
@@ -6881,4 +6925,103 @@ html.m-mode .mm-moon {
 
 html.m-mode .mm-moon:active {
   transform: scale(0.9) rotate(-12deg);
+}
+
+/* ============================================================
+   横屏适配：仅推荐流 / 播放页由原生桥放开传感器
+   - 视频、海报、等待层随横竖屏尺寸平滑过渡
+   - 推荐流隐藏顶部频道和底部 Tab，进入沉浸式全屏
+   - 播放页视频铺满整屏，底部控件居中收窄
+   ============================================================ */
+
+@keyframes m-rotate-media-in {
+  from {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html.m-mode.is-rotating.is-landscape .feedv__frame,
+html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
+  animation: m-rotate-media-in 0.46s var(--m-ease) both;
+}
+
+@media (orientation: landscape) {
+  /* 推荐流：横屏时把顶部频道、底部 Tab 收起，画面独占整屏 */
+  html.m-mode.is-landscape .m-app[data-route='feed'] .feedv__tabs,
+  html.m-mode.is-landscape .m-app[data-route='feed'] .m-feedtop {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-120%);
+    transition: opacity 0.22s var(--m-ease), transform 0.34s var(--m-ease);
+  }
+
+  html.m-mode.is-landscape .m-app[data-route='feed'] .m-tabbar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(100%);
+  }
+
+  html.m-mode.is-landscape .feedv__frame video,
+  html.m-mode.is-landscape .feedv__poster,
+  html.m-mode.is-landscape .feedv__waiting {
+    transition: top 0.36s var(--m-ease), height 0.36s var(--m-ease);
+  }
+
+  html.m-mode.is-landscape .feedv__info {
+    left: 16px;
+    right: 84px;
+    bottom: calc(62px + var(--m-safe-bottom));
+  }
+
+  html.m-mode.is-landscape .feedv__rail {
+    right: 12px;
+    bottom: calc(70px + var(--m-safe-bottom));
+    gap: 12px;
+  }
+
+  html.m-mode.is-landscape .dock {
+    width: min(620px, calc(100vw - 220px));
+  }
+
+  /* 播放页：视频铺满整屏，信息区让位，底部控件居中 */
+  html.m-mode.is-landscape .play.play--mobile {
+    --mp-video-top: 0px;
+    --mp-video-h: 100vh;
+  }
+
+  html.m-mode.is-landscape .play--mobile .drama-player {
+    top: 0 !important;
+    height: 100% !important;
+    transition: top 0.4s var(--m-ease), height 0.4s var(--m-ease);
+  }
+
+  html.m-mode.is-landscape .play--mobile .mp-info {
+    display: none;
+  }
+
+  html.m-mode.is-landscape .play--mobile .mp-top {
+    left: 18px;
+    right: 18px;
+  }
+
+  html.m-mode.is-landscape .play--mobile .mp-rail {
+    top: 50%;
+    right: 12px;
+    bottom: auto;
+    transform: translateY(-50%);
+    gap: 12px;
+  }
+
+  html.m-mode.is-landscape .play--mobile .mp-bottom {
+    left: 50%;
+    right: auto;
+    width: min(760px, calc(100vw - 180px));
+    padding-bottom: calc(10px + var(--m-safe-bottom));
+    translate: -50% 0;
+  }
 }
