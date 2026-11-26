@@ -30,9 +30,14 @@ if (location.search.includes('mini=1')) document.documentElement.classList.add('
 
 /**
  * 手机端走全新界面（m-*），桌面宽度仍用原界面。
- * 手机 App 的 WebView 只有竖屏，所以这里按宽度/指针类型一次性决定即可。
+ * 不能只看 max-width：横屏冷启动时 Android WebView 宽度会超过 900，
+ * 会被误判成桌面端而渲染旧界面。原生桥/Android UA 优先级最高。
  */
-const isPhone = window.matchMedia('(max-width: 900px)').matches || window.matchMedia('(pointer: coarse)').matches;
+const isPhone =
+  Boolean(window.HorunAndroid) ||
+  /Android/i.test(navigator.userAgent) ||
+  window.matchMedia('(max-width: 900px)').matches ||
+  window.matchMedia('(pointer: coarse)').matches;
 if (isPhone) document.documentElement.classList.add('m-mode');
 
 createRoot(root).render(<StrictMode>{isPhone ? <MobileApp /> : <App />}</StrictMode>);

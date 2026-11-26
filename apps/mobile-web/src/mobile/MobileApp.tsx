@@ -137,11 +137,11 @@ export function MobileApp(): JSX.Element {
     window.HorunAndroid?.setBars?.(dark ? 'dark' : 'light');
   }, [route, playRoute, detailId, theme]);
 
-  // 横屏只在视频路由开放：进入推荐流/播放页跟随传感器，离开就锁回竖屏。
-  // 浏览器里没有原生桥，方向交给浏览器自己处理。
+  // 1.3.6：所有页面都允许横屏（不再只给推荐流/播放页）。
+  // 沉浸式仍只给视频路由；普通页横屏时保留系统栏。
   useEffect(() => {
-    window.HorunAndroid?.setOrientation?.(videoRoute ? 'auto' : 'portrait');
-  }, [videoRoute]);
+    window.HorunAndroid?.setOrientation?.('auto');
+  }, []);
 
   // 横竖屏切换：给根节点打标记，驱动横屏布局 + 转场动画；横屏视频页同时进沉浸式全屏。
   useEffect(() => {

@@ -173,6 +173,11 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   const [switching, setSwitching] = useState(false);
   /** 这次过渡是从哪一集发起的（路由变了才算切成功） */
   const switchingFrom = useRef('');
+  /** +1 下一集（画面上移）/ -1 上一集（画面下移），驱动切集过渡方向 */
+  const [switchDir, setSwitchDir] = useState<1 | -1>(1);
+  /** 新集起播的入场方向；动画结束后清空，避免一直盖着幕帘 */
+  const [episodeEnter, setEpisodeEnter] = useState<'' | 'up' | 'down'>('');
+  const mountedEpisode = useRef(route.episodeId);
   /**
    * 当前 `job` / 播放地址属于**哪一集**。
    *
@@ -514,6 +519,9 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
         }
         // 换集替换当前历史条目：否则自动连播几集后，返回要一集一集退
         replacePlayHash(playHash(route.seriesId, target.episodeId, target.no));
+        switchingFrom.current = route.episodeId;
+        setSwitchDir(delta >= 0 ? 1 : -1);
+        setSwitching(true);
         return true;
       };
       if (go(detailRef.current)) return;
@@ -550,6 +558,16 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     }, 6000);
     return () => window.clearTimeout(timer);
   }, [switching, route.episodeId, flash]);
+
+  // 路由真的换集后播一段方向性入场：上滑下一集从下方托上来，下滑上一集从上方压下来。
+  // 旧版只是换源，画面"啪"地跳过去；这层动画让手势和结果对得上。
+  useEffect(() => {
+    if (route.episodeId === mountedEpisode.current) return;
+    mountedEpisode.current = route.episodeId;
+    setEpisodeEnter(switchDir > 0 ? 'up' : 'down');
+    const timer = window.setTimeout(() => setEpisodeEnter(''), 560);
+    return () => window.clearTimeout(timer);
+  }, [route.episodeId, switchDir]);
 
   // 系统媒体控件（画中画窗口、Windows 音量浮层、蓝牙耳机按键）也能切集
   useEffect(() => {
@@ -1017,6 +1035,11 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     (t: number, d: number): void => {
       setTime(t);
       if (d > 0) setDuration(d);
+      // xgplayer 的 play/pause 事件在换源、全屏切换时偶发丢失；
+      // 位置在推进且 <video> 确实没暂停，就以实际媒体状态为准解锁弹幕，
+      // 避免 paused 状态永远停在 true 导致整层弹幕冻结。
+      const media = playerRef.current?.media as HTMLVideoElement | null;
+      if (media !== null && media !== undefined && media.paused === false) setPlaying(true);
       // 兜底自动连播：部分 WebView 在最后 0.3s 不派发 ended（或全屏时被吞），
       // 这里用 timeupdate 再判一次；一集只切一次，避免和 onEnded 双跳。
       if (
@@ -1109,6 +1132,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       data-chrome-hidden={!chromeVisible}
       // 等待新集时也要盖掉 xgplayer 的「重播/进入」浮层（play.css 里按这个属性隐藏）
       data-switching={switching || waiting}
+      data-episode-enter={episodeEnter}
       onMouseMove={wakeChrome}
       onClick={tapChrome}
       onTouchStart={onTouchStart}
@@ -1460,6 +1484,13 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               <p className="play__waiting-hint">准备好后播本地文件：时长准确、进度条能拖；看剧时前后几集会提前转好</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* 切集幕帘：和视频入场同时播放，给上下切集一个明确方向 */}
+      {episodeEnter !== '' && (
+        <div className="mp-switch-curtain" data-dir={episodeEnter} aria-hidden="true">
+          <span>第 {route.no} 集</span>
         </div>
       )}
 

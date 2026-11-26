@@ -28,19 +28,24 @@ export function useDanmaku(options: {
   const [items, setItems] = useState<DanmakuItem[]>([]);
   const [loading, setLoading] = useState(false);
   const meta = useRef<Meta>({ cursor: '', startMs: 0, endMs: 0, hasMore: false, loading: false, lastEnd: 0 });
+  /** 换集/关闭时递增；旧请求晚回来时直接丢弃，避免把上一集的弹幕灌进新一集。 */
+  const seq = useRef(0);
 
   // 换集 / 开关变化：重置
   useEffect(() => {
+    seq.current += 1;
     meta.current = { cursor: '', startMs: 0, endMs: 0, hasMore: false, loading: false, lastEnd: 0 };
     setItems([]);
-  }, [episodeId, enabled]);
+  }, [episodeId, seriesId, enabled]);
 
   const load = async (startMs: number, cursor: string, append: boolean): Promise<void> => {
     if (meta.current.loading) return;
+    const run = seq.current;
     meta.current.loading = true;
     setLoading(true);
     try {
       const res = await api.danmaku(seriesId, episodeId, startMs, cursor);
+      if (run !== seq.current) return;
       meta.current = {
         cursor: res.nextCursor,
         startMs: res.startMs,
@@ -55,9 +60,9 @@ export function useDanmaku(options: {
         return [...prev, ...res.items.filter((i) => !seen.has(i.id))];
       });
     } catch {
-      meta.current.loading = false;
+      if (run === seq.current) meta.current.loading = false;
     } finally {
-      setLoading(false);
+      if (run === seq.current) setLoading(false);
     }
   };
 

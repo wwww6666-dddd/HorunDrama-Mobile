@@ -55,6 +55,8 @@ public class MainActivity extends Activity {
     private boolean lightBars;
     /** 视频页/推荐页允许跟随传感器横屏；其他页面锁定竖屏 */
     private boolean orientationAuto;
+    /** 横屏视频页请求了沉浸式；onResume/换肤重设系统栏时必须保持隐藏状态栏 */
+    private boolean immersive;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -333,6 +335,10 @@ public class MainActivity extends Activity {
     private void applyBars(boolean light) {
         lightBars = light;
         if (customView != null) return;
+        if (immersive) {
+            hideSystemUi();
+            return;
+        }
         int color = light ? 0xFFFFFFFF : 0xFF0A0908;
         getWindow().setStatusBarColor(color);
         getWindow().setNavigationBarColor(color);
@@ -488,10 +494,11 @@ public class MainActivity extends Activity {
 
         /** 横屏播放时隐藏状态栏/导航栏；回到竖屏或离开播放器时恢复。 */
         @JavascriptInterface
-        public void setImmersive(boolean immersive) {
+        public void setImmersive(boolean on) {
+            immersive = on;
             runOnUiThread(() -> {
                 if (customView != null) return;
-                if (immersive) hideSystemUi();
+                if (on) hideSystemUi();
                 else showSystemUi();
             });
         }

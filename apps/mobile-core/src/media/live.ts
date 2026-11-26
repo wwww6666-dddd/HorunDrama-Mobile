@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import type http from 'node:http';
 import path from 'node:path';
-import { download, findFfmpeg } from './transcode.ts';
+import { download, ffmpegEnv, findFfmpeg } from './transcode.ts';
 import type { StreamChoice } from '../sources/playback.ts';
 import { mediaDir } from '../store/settings.ts';
 import { createLogger } from '../util/log.ts';
@@ -115,7 +115,7 @@ function startFfmpeg(
   };
 
   try {
-    child = spawn(ffmpeg, args, { windowsHide: true });
+    child = spawn(ffmpeg, args, { windowsHide: true, env: ffmpegEnv() });
   } catch (err) {
     log.warn(`live 启动 ffmpeg 失败：${(err as Error).message}`);
     cleanup();

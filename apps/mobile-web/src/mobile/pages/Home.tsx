@@ -134,13 +134,32 @@ function Skeleton({ columns }: { columns: number }): JSX.Element {
   );
 }
 
+function columnsForWidth(width: number): number {
+  if (width >= 1180) return 5;
+  if (width >= 860) return 4;
+  if (width >= 600) return 3;
+  return 2;
+}
+
 function useColumns(): number {
-  const [columns, setColumns] = useState(() => (window.matchMedia('(min-width: 600px)').matches ? 3 : 2));
+  const [columns, setColumns] = useState(() => columnsForWidth(window.innerWidth));
   useEffect(() => {
-    const query = window.matchMedia('(min-width: 600px)');
-    const onChange = (): void => setColumns(query.matches ? 3 : 2);
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
+    let frame = 0;
+    const onChange = (): void => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const next = columnsForWidth(window.innerWidth);
+        setColumns((prev) => (prev === next ? prev : next));
+      });
+    };
+    window.addEventListener('resize', onChange);
+    window.addEventListener('orientationchange', onChange);
+    return () => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', onChange);
+      window.removeEventListener('orientationchange', onChange);
+    };
   }, []);
   return columns;
 }

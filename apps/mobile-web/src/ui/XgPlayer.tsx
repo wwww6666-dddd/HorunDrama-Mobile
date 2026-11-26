@@ -84,6 +84,123 @@ export function XgPlayer({
     const mediaEl = player.media as HTMLVideoElement | null;
 
     /**
+     * 华为/部分 Android WebView 在 video.pause() 后会清掉硬件层，画面变纯黑。
+     * 桌面 Chromium 不会，所以电脑端没这个问题。这里在播放时低频抓一帧到 stash，
+     * 暂停时用 canvas 把最后一帧盖在视频上；恢复播放立即撤掉。纯前端，不需要改内核。
+     */
+    const root = player.root as HTMLElement | null;
+    const freeze = document.createElement('canvas');
+    freeze.className = 'xg-freeze';
+    const stash = document.createElement('canvas');
+    const freezeCtx = freeze.getContext('2d');
+    const stashCtx = stash.getContext('2d');
+    root?.appendChild(freeze);
+    let lastFrameAt = 0;
+    let freezeShown = false;
+
+    const captureFrame = (): void => {
+      if (mediaEl === null || mediaEl.readyState < 2 || mediaEl.videoWidth === 0 || mediaEl.videoHeight === 0) return;
+      const maxW = 1280;
+      const scale = Math.min(1, maxW / mediaEl.videoWidth);
+      const w = Math.max(2, Math.round(mediaEl.videoWidth * scale));
+      const h = Math.max(2, Math.round(mediaEl.videoHeight * scale));
+      if (stash.width !== w || stash.height !== h) {
+        stash.width = w;
+        stash.height = h;
+      }
+      try {
+        stashCtx?.drawImage(mediaEl, 0, 0, w, h);
+      } catch {
+        /* 个别内核不允许取 video 帧，保留旧 stash */
+      }
+    };
+
+    /** 把 canvas 对齐到 video 真正显示的内容区（contain 时去掉上下/左右黑边）。 */
+    const syncFreezeRect = (): void => {
+      if (root === null || mediaEl === null) return;
+      const rr = root.getBoundingClientRect();
+      const mr = mediaEl.getBoundingClientRect();
+      const vw = mediaEl.videoWidth;
+      const vh = mediaEl.videoHeight;
+      if (vw === 0 || vh === 0) return;
+      const fit = getComputedStyle(mediaEl).objectFit;
+      let w = mr.width;
+      let h = mr.height;
+      let left = mr.left - rr.left;
+      let top = mr.top - rr.top;
+      if (fit === 'contain') {
+        const scale = Math.min(mr.width / vw, mr.height / vh);
+        w = vw * scale;
+        h = vh * scale;
+        left += (mr.width - w) / 2;
+        top += (mr.height - h) / 2;
+      }
+      freeze.style.left = `${left}px`;
+      freeze.style.top = `${top}px`;
+      freeze.style.width = `${w}px`;
+      freeze.style.height = `${h}px`;
+    };
+
+    const showFreeze = (): void => {
+      if (stash.width === 0 || stash.height === 0 || freezeCtx === null) return;
+      if (freeze.width !== stash.width || freeze.height !== stash.height) {
+        freeze.width = stash.width;
+        freeze.height = stash.height;
+      }
+      freezeCtx.clearRect(0, 0, freeze.width, freeze.height);
+      freezeCtx.drawImage(stash, 0, 0);
+      syncFreezeRect();
+      freeze.style.display = 'block';
+      freezeShown = true;
+    };
+
+    const hideFreeze = (): void => {
+      if (!freezeShown) return;
+      freeze.style.display = 'none';
+      freezeShown = false;
+    };
+
+    const tickFrame = (): void => {
+      if (mediaEl === null || mediaEl.paused) return;
+      const now = performance.now();
+      if (now - lastFrameAt < 900) return;
+      lastFrameAt = now;
+      captureFrame();
+    };
+
+    const onMediaPause = (): void => {
+      // pause 事件时硬件层可能已经清黑，优先用播放中缓存的最后一帧，不在这里重抓。
+      if (stash.width === 0) captureFrame();
+      showFreeze();
+    };
+    const onMediaPlaying = (): void => {
+      hideFreeze();
+      captureFrame();
+      lastFrameAt = performance.now();
+    };
+    const onMediaSeeking = (): void => hideFreeze();
+    const onMediaSeeked = (): void => {
+      if (mediaEl !== null && mediaEl.paused) {
+        captureFrame();
+        showFreeze();
+      }
+    };
+    const onMediaEnded = (): void => hideFreeze();
+    const onMediaEmptied = (): void => hideFreeze();
+    const onViewportChange = (): void => {
+      if (!freezeShown) return;
+      syncFreezeRect();
+    };
+    mediaEl?.addEventListener('pause', onMediaPause);
+    mediaEl?.addEventListener('playing', onMediaPlaying);
+    mediaEl?.addEventListener('seeking', onMediaSeeking);
+    mediaEl?.addEventListener('seeked', onMediaSeeked);
+    mediaEl?.addEventListener('ended', onMediaEnded);
+    mediaEl?.addEventListener('emptied', onMediaEmptied);
+    window.addEventListener('resize', onViewportChange);
+    window.addEventListener('orientationchange', onViewportChange);
+
+    /**
      * 换源时 media 会重新加载，部分 WebView 会把 playbackRate 归到 1x。
      * 不能只依赖 canplay：它有时早于恢复逻辑，所以在 loadedmetadata/canplay/playing
      * 三个阶段都补一次；只在 pendingSeq（刚换源且序号对应）期间做，
@@ -251,11 +368,17 @@ export function XgPlayer({
       // 新源真正开始加载时才把序号落到 pendingSeq：旧源的 canplay 早于
       // 新源的 loadstart，因此不会消费掉新集的恢复状态。
       if (loadSeq.current !== 0) pendingSeq.current = loadSeq.current;
+      hideFreeze();
+      if (stash.width !== 0) {
+        stash.width = 0;
+        stash.height = 0;
+      }
     };
     mediaEl?.addEventListener('loadstart', onLoadStart);
 
     player.on('canplay', onCanPlay);
     player.on('timeupdate', () => {
+      tickFrame();
       const onTime = cbs.current.onTime;
       onTime?.(player.currentTime, Number.isFinite(player.duration) ? player.duration : 0);
     });
@@ -273,6 +396,15 @@ export function XgPlayer({
       mediaEl?.removeEventListener('loadedmetadata', restorePendingRate);
       mediaEl?.removeEventListener('canplay', restorePendingRate);
       mediaEl?.removeEventListener('playing', restorePendingRate);
+      mediaEl?.removeEventListener('pause', onMediaPause);
+      mediaEl?.removeEventListener('playing', onMediaPlaying);
+      mediaEl?.removeEventListener('seeking', onMediaSeeking);
+      mediaEl?.removeEventListener('seeked', onMediaSeeked);
+      mediaEl?.removeEventListener('ended', onMediaEnded);
+      mediaEl?.removeEventListener('emptied', onMediaEmptied);
+      window.removeEventListener('resize', onViewportChange);
+      window.removeEventListener('orientationchange', onViewportChange);
+      freeze.remove();
       player.root?.removeEventListener('wheel', onWheel, false);
       playerRef.current = null;
       try {

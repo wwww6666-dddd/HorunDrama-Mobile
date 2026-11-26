@@ -49,6 +49,23 @@ export function findFfmpeg(): string {
   return 'ffmpeg';
 }
 
+/**
+ * Android 上 Node 进程需要 `LD_LIBRARY_PATH` 才能加载 app 自带的 libnode/libcrypto；
+ * 但 ffmpeg 是静态构建，不需要这些库。若把该变量继续传给 ffmpeg，app 的 OpenSSL 3
+ * 会覆盖系统 `libsqlite.so` 需要的老符号（`OpenSSL_add_all_algorithms`），
+ * ffmpeg 直接 CANNOT LINK EXECUTABLE，高清升级就永远失败。
+ * 只在 Android 上剥掉；桌面端保留原环境，避免影响系统 ffmpeg 的动态库。
+ */
+export function ffmpegEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const android =
+    process.platform === 'android' ||
+    (process.env.ANDROID_ROOT ?? '') !== '' ||
+    /\/lib\/arm64\//.test(process.env.HORUN_FFMPEG ?? '');
+  if (android) delete env.LD_LIBRARY_PATH;
+  return env;
+}
+
 export interface TranscodeProgress {
   progress: number;
   message: string;
@@ -173,7 +190,7 @@ function probeEncoder(ffmpeg: string, spec: EncoderSpec): Promise<boolean> {
         '-frames:v', '2',
         '-f', 'null', '-',
       ],
-      { windowsHide: true },
+      { windowsHide: true, env: ffmpegEnv() },
     );
     let settled = false;
     const finish = (ok: boolean): void => {
@@ -424,7 +441,7 @@ function runFfmpeg(
   signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpeg, args, { windowsHide: true });
+    const child = spawn(ffmpeg, args, { windowsHide: true, env: ffmpegEnv() });
     let errorTail = '';
     const onAbort = (): void => {
       child.kill();
