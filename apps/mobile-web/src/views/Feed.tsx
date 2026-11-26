@@ -1407,7 +1407,7 @@ function FeedSlide({
             {introOpen ? '收起' : '展开'}
           </button>
         </div>
-        <p className="feedv__note">本地播放 · 数据只留在你的电脑上</p>
+        <p className="feedv__note">本机播放 · 数据只留在这台手机</p>
         <div className="feedv__info-actions">
           <button className="btn btn--ghost btn--sm" onClick={() => setIntroOpen((v) => !v)}>
             {introOpen ? '收起' : '展开'}

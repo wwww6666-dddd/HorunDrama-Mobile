@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,6 +39,7 @@ public class MainActivity extends Activity {
     private static final String DEFAULT_HOME = "/#/feed";
 
     private WebView web;
+    private FrameLayout root;
     private FrameLayout fullscreenBox;
     private View splashBox;
     private View splashBottom;
@@ -57,6 +59,11 @@ public class MainActivity extends Activity {
     private boolean orientationAuto;
     /** 横屏视频页请求了沉浸式；onResume/换肤重设系统栏时必须保持隐藏状态栏 */
     private boolean immersive;
+    /** 系统栏/刘海占位（px），由 WindowInsets 动态给，适配竖屏状态栏、横屏刘海与手势条 */
+    private int insetLeft;
+    private int insetTop;
+    private int insetRight;
+    private int insetBottom;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +73,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         web = findViewById(R.id.web);
+        root = findViewById(R.id.root);
         fullscreenBox = findViewById(R.id.fullscreen);
         splashBox = findViewById(R.id.splashBox);
         splashBottom = findViewById(R.id.splashBottom);
@@ -74,6 +82,7 @@ public class MainActivity extends Activity {
         errorText = findViewById(R.id.errorText);
         retryBtn = findViewById(R.id.retryBtn);
         retryBtn.setOnClickListener(v -> boot());
+        setupWindowInsets();
 
         String deepHash = routeFromUri(getIntent() == null ? null : getIntent().getData());
         if (deepHash != null) pendingHash = deepHash;
@@ -331,6 +340,37 @@ public class MainActivity extends Activity {
         if (NodeCore.isReady() && web != null) web.loadUrl(NodeCore.BASE_URL + hash);
     }
 
+    /**
+     * 自适应系统栏：非沉浸页把状态栏/刘海/手势条让进内容区，沉浸视频页再归零。
+     * WebView 的 env(safe-area-inset-top) 在 Android 上恒为 0，不能只靠 CSS 补 28px。
+     */
+    private void setupWindowInsets() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || root == null) return;
+        getWindow().setDecorFitsSystemWindows(false);
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            insetLeft = bars.left;
+            insetTop = bars.top;
+            insetRight = bars.right;
+            insetBottom = bars.bottom;
+            applyContentInsets();
+            return insets;
+        });
+        root.requestApplyInsets();
+    }
+
+    private void applyContentInsets() {
+        if (root == null) return;
+        int left = immersive ? 0 : insetLeft;
+        int top = immersive ? 0 : insetTop;
+        int right = immersive ? 0 : insetRight;
+        int bottom = immersive ? 0 : insetBottom;
+        if (root.getPaddingLeft() != left || root.getPaddingTop() != top
+                || root.getPaddingRight() != right || root.getPaddingBottom() != bottom) {
+            root.setPadding(left, top, right, bottom);
+        }
+    }
+
     /** 浅色/深色两种系统栏，官方剧场/我的用白底黑字，推荐/播放用黑底白字。 */
     private void applyBars(boolean light) {
         lightBars = light;
@@ -355,6 +395,8 @@ public class MainActivity extends Activity {
                 controller.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
             }
+            applyContentInsets();
+            if (root != null) root.requestApplyInsets();
             return;
         }
         int flags = decor.getSystemUiVisibility();
@@ -392,13 +434,23 @@ public class MainActivity extends Activity {
     }
 
     private void hideSystemUi() {
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsBehavior(
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.hide(WindowInsets.Type.systemBars());
+            }
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        }
+        applyContentInsets();
     }
 
     private void showSystemUi() {

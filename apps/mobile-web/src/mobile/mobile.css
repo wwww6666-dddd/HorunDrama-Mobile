@@ -22,6 +22,11 @@
   --m-text-3: rgba(246, 241, 234, 0.4);
   --m-accent: var(--ember, #ff5a37);
   --m-accent-soft: var(--accent-soft, rgba(255, 90, 55, 0.16));
+  /* 主题色背景：比设计 token 的 aurora 更明显，保证切色后整页能一眼看出来。
+     不用 color-mix，Chrome 109 WebView 不支持。 */
+  --m-wash-1: rgba(255, 77, 46, 0.26);
+  --m-wash-2: rgba(255, 77, 46, 0.13);
+  --m-wash-3: rgba(255, 77, 46, 0.07);
   /* 开关：关态轨道要明显区别于卡片底，开态用实色主题色（不能用 color-mix，Chrome 109 不支持） */
   --m-switch-off: rgba(255, 255, 255, 0.18);
   --m-switch-off-border: rgba(255, 255, 255, 0.24);
@@ -53,6 +58,37 @@
   --m-switch-off-border: rgba(27, 23, 20, 0.24);
   --m-switch-off-text: rgba(27, 23, 20, 0.68);
 }
+
+/* 主题色要染到整页背景，而不是只换按钮颜色 */
+:root[data-accent='crimson'] {
+  --m-wash-1: rgba(255, 45, 85, 0.26);
+  --m-wash-2: rgba(255, 45, 85, 0.13);
+  --m-wash-3: rgba(255, 45, 85, 0.07);
+}
+
+:root[data-accent='jade'] {
+  --m-wash-1: rgba(47, 191, 155, 0.28);
+  --m-wash-2: rgba(47, 191, 155, 0.14);
+  --m-wash-3: rgba(47, 191, 155, 0.08);
+}
+
+:root[data-accent='violet'] {
+  --m-wash-1: rgba(139, 92, 246, 0.28);
+  --m-wash-2: rgba(139, 92, 246, 0.14);
+  --m-wash-3: rgba(139, 92, 246, 0.08);
+}
+
+:root[data-accent='azure'] {
+  --m-wash-1: rgba(59, 130, 246, 0.28);
+  --m-wash-2: rgba(59, 130, 246, 0.14);
+  --m-wash-3: rgba(59, 130, 246, 0.08);
+}
+
+:root[data-accent='gold'] {
+  --m-wash-1: rgba(217, 161, 59, 0.3);
+  --m-wash-2: rgba(217, 161, 59, 0.15);
+  --m-wash-3: rgba(217, 161, 59, 0.09);
+} 
 
 html.m-mode,
 html.m-mode body,
@@ -91,10 +127,25 @@ html.m-mode * {
   color: var(--m-text);
   font-family: var(--m-font);
   background:
-    radial-gradient(120% 45% at 50% -8%, rgba(255, 110, 70, 0.12), transparent 62%),
-    radial-gradient(90% 40% at 100% 8%, rgba(255, 170, 110, 0.06), transparent 60%),
+    radial-gradient(120% 55% at 50% -12%, var(--m-wash-1), transparent 62%),
+    radial-gradient(85% 45% at 100% 10%, var(--m-wash-2), transparent 58%),
     var(--m-bg);
   overflow: hidden;
+  isolation: isolate;
+}
+
+/* 路由会把 .m-app/.m-scroll 的底色写成不透明纯色，这层主题色薄膜放在负层级：
+   在纯色底之上、所有内容之下，所以每个页面切主题色都能看到明显染色。 */
+.m-app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(95% 42% at 50% 0%, var(--m-wash-1), transparent 68%),
+    radial-gradient(75% 55% at 100% 100%, var(--m-wash-3), transparent 70%),
+    linear-gradient(180deg, transparent 58%, var(--m-wash-3) 100%);
 }
 
 .m-topbar {
@@ -5210,6 +5261,41 @@ html.m-mode .m-app[data-route='home'] {
     transform: rotate(-38deg);
   }
 
+  /* 底部常驻弹幕开关：横屏 mp-info 会隐藏，这个入口仍然可见 */
+  .play--mobile .mp-ctl--danmaku {
+    position: relative;
+    gap: 6px;
+  }
+
+  .play--mobile .mp-dm-badge {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 19px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .play--mobile .mp-ctl--danmaku[data-off='true'] {
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .play--mobile .mp-ctl--danmaku[data-off='true'] .mp-dm-badge::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    top: 50%;
+    height: 1.5px;
+    background: rgba(255, 255, 255, 0.8);
+    transform: rotate(-38deg);
+  }
+
   .play--mobile .mp-hot {
     display: inline-flex;
     align-items: center;
@@ -6993,10 +7079,26 @@ html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
     bottom: calc(62px + var(--m-safe-bottom));
   }
 
+  /* 横屏底部固定 56dp 导航条：推荐流所有控件跟着上移，不被遮住 */
+  html.m-mode.is-landscape {
+    --feed-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.m-mode.is-landscape .feedv__prog {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
   html.m-mode.is-landscape .feedv__rail {
     right: 12px;
     bottom: calc(70px + var(--m-safe-bottom));
     gap: 12px;
+  }
+
+  /* 横屏头像落在右栏收藏按钮上方，同一列：头像 → 收藏 → 评论 → 点赞 → 分享 */
+  html.m-mode.is-landscape .feedv__author {
+    top: auto;
+    bottom: calc(70px + var(--m-safe-bottom) + 318px);
+    right: 12px;
   }
 
   html.m-mode.is-landscape .dock {
@@ -7041,9 +7143,133 @@ html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
   }
 }
 
+/* 手机横屏高度不足 700px：右栏按钮压到 42px，头像跟着降到收藏正上方 */
+@media (max-height: 700px) and (orientation: landscape) {
+  html.m-mode.is-landscape .feedv__author {
+    bottom: calc(70px + var(--m-safe-bottom) + 286px);
+  }
+}
+
 /* 上下切集：幕帘扫过 + 新集画面从对应方向托入 */
 .play--mobile .drama-player {
   will-change: transform, opacity;
+}
+
+.play--mobile {
+  --mp-drag-y: 0px;
+  touch-action: none;
+}
+
+/* 跟手切集：手指拖动时画面/右侧操作/信息区一起位移，松手回弹或滑出屏幕 */
+.play--mobile .drama-player,
+.play--mobile .mp-top,
+.play--mobile .mp-rail,
+.play--mobile .mp-info,
+.play--mobile .mp-bottom {
+  translate: 0 var(--mp-drag-y);
+  transition: translate 0.42s var(--m-spring, var(--m-ease));
+}
+
+.play--mobile[data-dragging='true'] .drama-player,
+.play--mobile[data-dragging='true'] .mp-top,
+.play--mobile[data-dragging='true'] .mp-rail,
+.play--mobile[data-dragging='true'] .mp-info,
+.play--mobile[data-dragging='true'] .mp-bottom {
+  transition: none;
+}
+
+.play--mobile[data-dragging='commit'] .drama-player,
+.play--mobile[data-dragging='commit'] .mp-top,
+.play--mobile[data-dragging='commit'] .mp-rail,
+.play--mobile[data-dragging='commit'] .mp-info,
+.play--mobile[data-dragging='commit'] .mp-bottom {
+  transition: translate 0.22s cubic-bezier(0.32, 0, 0.67, 0);
+}
+
+/* 拖动时露出的相邻集预览（封面 + 集数），让用户松手前就知道会切到哪 */
+.play--mobile .mp-swipe-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #060505;
+  pointer-events: none;
+}
+
+.play--mobile .mp-swipe-preview__bg {
+  position: absolute;
+  inset: -28px;
+  background-position: center;
+  background-size: cover;
+  filter: blur(14px) brightness(0.74) saturate(1.12);
+  transform: scale(1.08);
+}
+
+.play--mobile .mp-swipe-preview[data-edge='true'] .mp-swipe-preview__bg {
+  filter: blur(24px) brightness(0.42) saturate(0.85);
+}
+
+.play--mobile .mp-swipe-preview__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.08) 36%, rgba(0, 0, 0, 0.72));
+}
+
+.play--mobile .mp-swipe-preview__meta {
+  position: absolute;
+  left: 30px;
+  right: 96px;
+  /* 上滑切下一集：画面往上走，露出屏幕底部，预览文字放在底部 */
+  top: auto;
+  bottom: 9%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+/* 下滑切上一集：画面往下走，露出屏幕顶部，预览文字跟着放到顶部 */
+.play--mobile .mp-swipe-preview[data-dir='-1'] .mp-swipe-preview__meta {
+  top: calc(var(--m-safe-top, 0px) + 64px);
+  bottom: auto;
+}
+
+.play--mobile .mp-swipe-preview__pill {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.play--mobile .mp-swipe-preview__meta b {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.play--mobile .mp-swipe-preview__meta > span:last-child:not(.mp-swipe-preview__pill) {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+@media (orientation: landscape) {
+  .play--mobile .mp-swipe-preview__meta {
+    left: 48px;
+    right: 140px;
+    bottom: 9%;
+  }
+
+  .play--mobile .mp-swipe-preview[data-dir='-1'] .mp-swipe-preview__meta {
+    top: calc(var(--m-safe-top, 0px) + 64px);
+    bottom: auto;
+  }
 }
 
 .play--mobile[data-episode-enter='up'] .drama-player {
@@ -7188,23 +7414,33 @@ html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
     padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* 底栏缩成居中的胶囊，避免横屏时一条白带横贯整屏 */
+  /* 横屏底栏：保持整条固定在屏幕底部，不再做成会浮在卡片上的胶囊 */
   html.m-mode.is-landscape .m-tabbar {
-    left: 50%;
-    right: auto;
-    width: min(420px, calc(100vw - 420px));
-    min-width: 300px;
-    height: 48px;
-    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-    padding: 0 8px;
-    border: 1px solid var(--m-line);
-    border-radius: 999px;
-    translate: -50% 0;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    min-width: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding: 0 8px env(safe-area-inset-bottom, 0px);
+    border: 0;
+    border-top: 1px solid var(--m-line);
+    border-radius: 0;
+    translate: 0 0;
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.22);
+    backdrop-filter: blur(20px) saturate(1.35);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  }
+
+  /* 推荐流横屏也不再收起底栏：用户可以随时回剧场/我的 */
+  html.m-mode.is-landscape .m-app[data-route='feed'] .m-tabbar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
   }
 
   html.m-mode.is-landscape .m-tabbar__item[data-active='true']::after {
-    bottom: 3px;
+    bottom: 7px;
   }
 
   /* 剧场：4/5 列瀑布，页面内容限宽居中（平板 1120dp 不再拉成 3 个巨卡） */
@@ -7279,21 +7515,8 @@ html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
     padding: 0 max(20px, env(safe-area-inset-left, 0px)) 30px max(20px, env(safe-area-inset-right, 0px));
   }
 
-  /* 非沉浸页的顶栏要避开状态栏：WebView 在 Android 上把 --m-safe-top 报成 0，
-     横屏时状态栏仍压在最上面，补 28px 内边距并把滚动内容同步下移。 */
-  html.m-mode.is-landscape .m-app:not([data-route='home']):not([data-route='feed']):not([data-route='play']):not([data-route='me']):not([data-route='search']) .m-topbar {
-    height: calc(44px + 28px);
-    padding-top: 28px;
-  }
-
-  html.m-mode.is-landscape .m-app:not([data-route='home']):not([data-route='feed']):not([data-route='play']):not([data-route='me']):not([data-route='search']) .m-scroll {
-    padding-top: calc(74px + 4px);
-  }
-
-  /* 搜索页自带搜索头，没有 .m-topbar；横屏时同样补状态栏高度 */
-  html.m-mode.is-landscape .m-app[data-route='search'] .m-searchpage {
-    padding-top: max(26px, calc(var(--m-safe-top) + 26px));
-  }
+  /* 状态栏/刘海高度由原生 WindowInsets 给根视图留出，CSS 不再写死 28px 补丁，
+     否则竖屏/不同状态栏高度会重复留白。 */
 
   html.m-mode.is-landscape .m-app[data-route='settings'] .ms-title,
   html.m-mode.is-landscape .m-app[data-route='settings'] .ms-card {

@@ -215,8 +215,21 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   const prewarmed = useRef('');
   /** 自动连播防抖：timeupdate 和 ended 可能同时触发，一集只切一次 */
   const autoNextGuard = useRef('');
-  /** 竖滑手势起点；只记录，不在 touchmove 里 preventDefault，避免打断播放器控件 */
-  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
+  /** 竖滑手势起点；拖动中把位移写到 CSS 变量，避免每帧触发整页 React 重渲染 */
+  const swipeStart = useRef<{
+    x: number;
+    y: number;
+    at: number;
+    lastY: number;
+    lastAt: number;
+    active: boolean;
+  } | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  /** +1 正在上滑看下一集，-1 正在下滑看上一集 */
+  const [dragDir, setDragDir] = useState<1 | -1>(1);
+  const dragYRef = useRef(0);
+  /** 手势结束后 WebView 可能补发一次 click，不能让它把视频暂停 */
+  const suppressClickUntil = useRef(0);
 
   const flash = useCallback((text: string): void => {
     setNote(text);
@@ -928,6 +941,18 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   }, [episode?.episodeId, episode?.diggCount]);
 
   const episodeCount = detail?.episodes.length ?? 0;
+  /** 拖动时背后的目标集预览：封面 + 集数，松手前就能看见要去哪一集 */
+  const dragPreview = useMemo(() => {
+    if (!dragActive || detail === null) return null;
+    const target = detail.episodes[currentIndex + dragDir];
+    return {
+      target: target ?? null,
+      cover: detail.drama.cover !== '' ? detail.drama.cover : `/api/poster/${detail.drama.seriesId}`,
+      no: target?.no ?? (dragDir === 1 ? Math.min(episodeCount, route.no + 1) : Math.max(1, route.no - 1)),
+      title: detail.drama.title,
+      edge: target === undefined ? (dragDir === 1 ? '已经是最后一集' : '已经是第一集') : '',
+    };
+  }, [dragActive, dragDir, detail, currentIndex, episodeCount, route.no]);
   const title = detail?.drama.title ?? '播放中';
   // 上一集/上一档已经能播的地址：新集还在准备时先继续用它，
   // 这样播放器不会卸载重建（画中画、全屏状态都保得住）
@@ -995,41 +1020,95 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       '.mp-top,.mp-bottom,.mp-rail,.mp-menu,.mp-quality,.play__sheet,.play__sheet-mask,.play__comments,.play__rail,.play__top,.play__meta,.play__comments-mask',
     ) !== null;
 
+  const resetDrag = useCallback((): void => {
+    dragYRef.current = 0;
+    pageRef.current?.setAttribute('data-dragging', 'false');
+    pageRef.current?.style.setProperty('--mp-drag-y', '0px');
+    setDragActive(false);
+  }, []);
+
   const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>): void => {
     if (!mobile || event.touches.length !== 1 || isGestureIgnored(event.target)) {
       swipeStart.current = null;
       return;
     }
     const touch = event.touches[0]!;
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, at: Date.now() };
+    swipeStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      at: Date.now(),
+      lastY: touch.clientY,
+      lastAt: Date.now(),
+      active: false,
+    };
+  };
+
+  const onTouchMove = (event: ReactTouchEvent<HTMLDivElement>): void => {
+    const start = swipeStart.current;
+    if (!mobile || start === null || event.touches.length !== 1) return;
+    const touch = event.touches[0]!;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    start.lastY = touch.clientY;
+    start.lastAt = Date.now();
+    if (Math.abs(dy) < 12 || Math.abs(dy) < Math.abs(dx) * 1.15) return;
+    if (!start.active) {
+      start.active = true;
+      setDragActive(true);
+      pageRef.current?.setAttribute('data-dragging', 'true');
+      setChromeVisible(false);
+      if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
+    }
+    const dir: 1 | -1 = dy < 0 ? 1 : -1;
+    if (dir !== dragDir) setDragDir(dir);
+    // 到头了还继续拖：只给 28% 位移，松手回弹，不做假切集
+    const atEdge = (dir === 1 && currentIndex >= episodeCount - 1) || (dir === -1 && currentIndex <= 0);
+    const height = pageRef.current?.clientHeight ?? window.innerHeight;
+    const max = height * 0.5;
+    const y = Math.max(-max, Math.min(max, dy * (atEdge ? 0.28 : 1)));
+    dragYRef.current = y;
+    pageRef.current?.style.setProperty('--mp-drag-y', `${y}px`);
   };
 
   const onTouchEnd = (event: ReactTouchEvent<HTMLDivElement>): void => {
     const start = swipeStart.current;
     swipeStart.current = null;
     if (!mobile || start === null || event.changedTouches.length !== 1) return;
+    if (!start.active) return;
+    suppressClickUntil.current = Date.now() + 520;
     const touch = event.changedTouches[0]!;
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Date.now() - start.at > 900) return;
-    // 竖向位移至少 56dp，且明显大于横向，避免和进度条横滑/双击冲突
-    if (Math.abs(dy) < 56 || Math.abs(dy) < Math.abs(dx) * 1.3) return;
+    const height = pageRef.current?.clientHeight ?? window.innerHeight;
+    const y = dragYRef.current;
+    const dir: 1 | -1 = y < 0 ? 1 : -1;
+    const elapsed = Math.max(1, Date.now() - start.lastAt);
+    const velocity = Math.abs(touch.clientY - start.lastY) / elapsed;
+    const commit = Math.abs(y) >= height * 0.16 || velocity > 0.55;
+    // 位移不够就弹回，画面不硬切
+    if (!commit) {
+      resetDrag();
+      return;
+    }
+    if ((dir === 1 && currentIndex >= episodeCount - 1) || (dir === -1 && currentIndex <= 0)) {
+      flash(dir === 1 ? '已经是最后一集' : '已经是第一集');
+      resetDrag();
+      return;
+    }
     wakeChrome();
     navigator.vibrate?.(8);
-    if (dy < 0) {
-      if (currentIndex >= episodeCount - 1 && episodeCount > 0) {
-        flash('已经是最后一集');
-        return;
-      }
-      neighbor(1);
-    } else {
-      if (currentIndex <= 0) {
-        flash('已经是第一集');
-        return;
-      }
-      neighbor(-1);
-    }
+    // 先把当前画面顺着手指滑出屏幕，再换集；新集继续用已有的入场动画衔接
+    pageRef.current?.setAttribute('data-dragging', 'commit');
+    pageRef.current?.style.setProperty('--mp-drag-y', `${dir * height}px`);
+    window.setTimeout(() => {
+      resetDrag();
+      neighbor(dir);
+    }, 230);
   };
+
+  // 换集/卸载时把跟手位移清干净，避免新一集继承上一集的 translate
+  useEffect(() => {
+    resetDrag();
+    swipeStart.current = null;
+  }, [route.episodeId, resetDrag]);
 
   const onTime = useCallback(
     (t: number, d: number): void => {
@@ -1133,14 +1212,42 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       // 等待新集时也要盖掉 xgplayer 的「重播/进入」浮层（play.css 里按这个属性隐藏）
       data-switching={switching || waiting}
       data-episode-enter={episodeEnter}
+      data-dragging={dragActive}
       onMouseMove={wakeChrome}
       onClick={tapChrome}
+      onClickCapture={(event) => {
+        if (Date.now() < suppressClickUntil.current) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={() => {
         swipeStart.current = null;
+        resetDrag();
       }}
     >
+      {dragPreview !== null && (
+        <div className="mp-swipe-preview" data-edge={dragPreview.edge !== ''} data-dir={dragDir}>
+          <div
+            className="mp-swipe-preview__bg"
+            style={{ backgroundImage: `url("${dragPreview.cover}")` }}
+          />
+          <div className="mp-swipe-preview__shade" />
+          <div className="mp-swipe-preview__meta">
+            <span className="mp-swipe-preview__pill">
+              {dragPreview.edge !== ''
+                ? dragPreview.edge
+                : `${dragDir === 1 ? '下一集' : '上一集'} · 第${dragPreview.no}集`}
+            </span>
+            <b>{dragPreview.edge !== '' ? dragPreview.edge : dragPreview.title}</b>
+            {dragPreview.edge === '' && <span>{dragDir === 1 ? '松手切换' : '松手返回'}</span>}
+          </div>
+        </div>
+      )}
+
       {readyUrl !== '' && startReady && (
         <DramaPlayer
           fullscreenHost={() => pageRef.current}
@@ -1423,6 +1530,16 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               <button type="button" className="mp-ctl" onClick={cycleRate}>
                 <MpIcon kind="clock" size={18} />
                 <span>{rate}x</span>
+              </button>
+              <button
+                type="button"
+                className="mp-ctl mp-ctl--danmaku"
+                data-off={!danmaku.enabled}
+                aria-pressed={danmaku.enabled}
+                onClick={toggleDanmaku}
+              >
+                <span className="mp-dm-badge">弹</span>
+                <span>{danmaku.enabled ? '弹幕' : '弹幕关'}</span>
               </button>
               <button type="button" className="mp-ctl" onClick={clearScreen}>
                 <MpIcon kind="clear" size={18} />

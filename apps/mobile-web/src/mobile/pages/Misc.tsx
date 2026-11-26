@@ -259,7 +259,7 @@ export function Downloads(): JSX.Element {
           <Icon name="refresh" size={16} /> 刷新
         </button>
       </div>
-      <p className="m-caption">{data !== null ? `共 ${data.summary.total} 个任务 · 下载在电脑上跑` : '下载在电脑上跑'}</p>
+      <p className="m-caption">{data !== null ? `共 ${data.summary.total} 个任务 · 下载在本机运行` : '下载在本机运行'}</p>
 
       {list.loading && <Skeleton rows={3} />}
       {list.error !== null && <Empty text={list.error} />}
@@ -299,7 +299,7 @@ export function Downloads(): JSX.Element {
 
       {!list.loading && (data?.items.length ?? 0) === 0 && <Empty text="还没有下载任务，在剧集详情里选几集下载" />}
       {note !== '' && <div className="m-note m-note--live">{note}</div>}
-      <p className="m-foot">文件保存在电脑的 {data?.dir ?? '下载目录'}，手机不落盘。</p>
+      <p className="m-foot">文件保存在本机 {data?.dir ?? '应用下载目录'}，打开 App 即可管理。</p>
     </>
   );
 }

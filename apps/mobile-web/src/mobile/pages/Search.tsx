@@ -458,7 +458,7 @@ export function About(): JSX.Element {
 
       <div className="m-prose">
         <p>
-          手机只负责显示和操作，真正的活儿都在你自己的电脑上：解析、解码、下载、签名、缓存。所以这部手机和电脑必须在同一个局域网里，电脑上的核心服务开着才能连上。
+          解析、解码、下载、缓存全部在手机本机完成，打开 App 就能独立运行，不需要连接其他设备。
         </p>
         <p>
           界面上没有广告、没有推荐算法干预，只有剧场、推荐、榜单、追剧四件事。播放器沿用原来的内核，画质、倍速、弹幕、选集都在手机上重排过。
@@ -469,7 +469,7 @@ export function About(): JSX.Element {
         <div className="m-group__body">
           <Row label="版本" right={<span className="m-row__value">{APP_VERSION}</span>} />
           <Row label="作者" right={<span className="m-row__value">{APP_AUTHOR}</span>} />
-          <Row label="数据位置" hint="全部在这台电脑上" right={<span className="m-row__value">本地</span>} />
+          <Row label="数据位置" hint="全部保存在这台手机上" right={<span className="m-row__value">本机</span>} />
           <Row
             label="反馈（复制链接）"
             chevron
@@ -483,7 +483,7 @@ export function About(): JSX.Element {
       {note !== '' && <div className="m-note m-note--live">{note}</div>}
 
       <p className="m-foot">
-        这是一个自用工具：仅在本机与自己的手机之间传输内容，不提供公开下载、不做商业分发。
+        这是一个自用工具：所有内容只在本机处理，不提供公开下载、不做商业分发。
         <br />
         <button
           type="button"

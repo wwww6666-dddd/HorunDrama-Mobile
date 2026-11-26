@@ -213,7 +213,7 @@ export function MeSettings(): JSX.Element {
             <SRow label="退出登录" onClick={() => void logout()} right={<span className="ms-danger">退出</span>} />
           </>
         ) : (
-          <SRow label="手机号登录" hint="与电脑端同一个手机号" onClick={() => setLoginOpen(true)} right={<span className="ms-pill">登录</span>} />
+          <SRow label="手机号登录" hint="登录后同步收藏 / 追剧记录" onClick={() => setLoginOpen(true)} right={<span className="ms-pill">登录</span>} />
         )}
       </div>
 
@@ -237,7 +237,7 @@ export function MeSettings(): JSX.Element {
         <div className="ms-row ms-row--stack">
           <span className="ms-row__text">
             <b>主题色</b>
-            <span>按钮、选中态和高亮会跟着变</span>
+            <span>按钮、选中态、高亮和页面底色会跟着变</span>
           </span>
           <div className="ms-swatches">
             {ACCENTS.map((item) => (
@@ -424,7 +424,6 @@ export function MeSettings(): JSX.Element {
       <h3 className="ms-title">更多</h3>
       <div className="ms-card">
         <SRow label="服务地址" hint={window.HorunAndroid?.getServerUrl() ?? location.origin} />
-        {window.HorunAndroid !== undefined && <SRow label="切换电脑" onClick={() => window.HorunAndroid?.openSetup()} />}
         <SRow label="隐私说明" hint="本机记录只存在设备上，不上传" onClick={() => void openExternalUrl('https://github.com/wwww6666-dddd/HorunDrama-Mobile#隐私')} />
         <SRow label="问题反馈" onClick={() => void openExternalUrl('https://github.com/wwww6666-dddd/HorunDrama-Mobile/issues/new')} />
         <SRow label="关于 HorunDrama 手机端" onClick={() => go('about')} />
@@ -433,7 +432,7 @@ export function MeSettings(): JSX.Element {
       </div>
 
       {(note !== '' || busy) && <p className="ms-note">{busy ? '处理中…' : note}</p>}
-      <p className="ms-foot">解码、下载、签名在电脑上跑；手机只负责显示和操作。缓存与账号数据保存在本机应用目录。</p>
+      <p className="ms-foot">解析、解码、下载、缓存都在手机本机完成，App 可独立运行。缓存与账号数据保存在本机应用目录。</p>
 
       <LoginSheet
         open={loginOpen}

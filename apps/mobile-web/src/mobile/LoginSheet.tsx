@@ -128,7 +128,7 @@ export function LoginSheet({
           登录
         </button>
         {note !== '' && <p className="m-form__note">{note}</p>}
-        <p className="m-form__note">与电脑端同一个手机号；验证码、登录态都走本机核心，不经过第三方页面。</p>
+        <p className="m-form__note">手机号登录；验证码、登录态都在本机完成，不经过第三方页面。</p>
       </div>
     </Sheet>
   );
