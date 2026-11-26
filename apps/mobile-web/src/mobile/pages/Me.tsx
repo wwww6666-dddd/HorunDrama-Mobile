@@ -271,6 +271,8 @@ export function Me(): JSX.Element {
   const [loginOpen, setLoginOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const theme = useApp((s) => s.theme);
+  const toggleTheme = useApp((s) => s.toggleTheme);
 
   useEffect(() => {
     void refreshAccount();
@@ -315,10 +317,23 @@ export function Me(): JSX.Element {
     <div className="mm-me">
       <section className="mm-hero">
         <div className="mm-hero__top">
-          <button type="button" className="mm-moon" aria-label="外观设置" onClick={() => go('settings')}>
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a8.5 8.5 0 1 0 10.8 10.8z" />
-            </svg>
+          <button
+            type="button"
+            className="mm-moon"
+            aria-label={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
+            title={theme === 'dark' ? '切换为浅色' : '切换为深色'}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? (
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4.2" />
+                <path d="M12 2.4v2.2M12 19.4v2.2M2.4 12h2.2M19.4 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6" />
+              </svg>
+            ) : (
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.2 14.6A8.2 8.2 0 0 1 9.4 3.8a8.5 8.5 0 1 0 10.8 10.8z" />
+              </svg>
+            )}
           </button>
           <button type="button" className="mm-menu" aria-label="设置" onClick={() => go('settings')}>
             <span />

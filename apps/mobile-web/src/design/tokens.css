@@ -166,6 +166,51 @@
   --glow-ember-strong: 0 0 0 1px rgba(217, 161, 59, 0.5), 0 10px 28px -10px rgba(217, 161, 59, 0.95);
 }
 
+/* 主题色不只染按钮：再给背景一层同色极光，切色时整页能看出来。
+   WebView 109 还不支持 color-mix，所以这里按 6 个强调色写死 rgba，
+   避免 var() 里塞 color-mix 后整条 background 失效。 */
+:root {
+  --accent-aurora-1: rgba(255, 77, 46, 0.18);
+  --accent-aurora-2: rgba(255, 77, 46, 0.09);
+  --accent-aurora-3: rgba(255, 77, 46, 0.05);
+  --accent-soft: rgba(255, 77, 46, 0.16);
+}
+
+:root[data-accent='crimson'] {
+  --accent-aurora-1: rgba(255, 45, 85, 0.18);
+  --accent-aurora-2: rgba(255, 45, 85, 0.09);
+  --accent-aurora-3: rgba(255, 45, 85, 0.05);
+  --accent-soft: rgba(255, 45, 85, 0.16);
+}
+
+:root[data-accent='jade'] {
+  --accent-aurora-1: rgba(47, 191, 155, 0.18);
+  --accent-aurora-2: rgba(47, 191, 155, 0.09);
+  --accent-aurora-3: rgba(47, 191, 155, 0.05);
+  --accent-soft: rgba(47, 191, 155, 0.16);
+}
+
+:root[data-accent='violet'] {
+  --accent-aurora-1: rgba(139, 92, 246, 0.18);
+  --accent-aurora-2: rgba(139, 92, 246, 0.09);
+  --accent-aurora-3: rgba(139, 92, 246, 0.05);
+  --accent-soft: rgba(139, 92, 246, 0.16);
+}
+
+:root[data-accent='azure'] {
+  --accent-aurora-1: rgba(59, 130, 246, 0.18);
+  --accent-aurora-2: rgba(59, 130, 246, 0.09);
+  --accent-aurora-3: rgba(59, 130, 246, 0.05);
+  --accent-soft: rgba(59, 130, 246, 0.16);
+}
+
+:root[data-accent='gold'] {
+  --accent-aurora-1: rgba(217, 161, 59, 0.2);
+  --accent-aurora-2: rgba(217, 161, 59, 0.1);
+  --accent-aurora-3: rgba(217, 161, 59, 0.05);
+  --accent-soft: rgba(217, 161, 59, 0.17);
+}
+
 :root[data-accent='jade'] .btn--primary,
 :root[data-accent='jade'] .dock__item[data-active='true'],
 :root[data-accent='jade'] .feedv__tab[data-active='true'] {

@@ -1285,17 +1285,6 @@ function FeedSlide({
                 </button>
               </div>
             </div>
-            <button
-              type="button"
-              className="feedv__fav"
-              onClick={() => void toggleFavorite()}
-              aria-label={favorited ? '取消收藏' : '收藏'}
-            >
-              <span className="feedv__fav-icon" data-on={favorited}>
-                {favorited ? '★' : '☆'}
-              </span>
-              <span className="feedv__fav-label">{favorited ? '已收藏' : '收藏'}</span>
-            </button>
             <div className="feedv__prog" aria-hidden="true">
               <span className="feedv__prog-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
               <span className="feedv__prog-dot" style={{ left: `${Math.round(progress * 100)}%` }} />
@@ -1347,7 +1336,7 @@ function FeedSlide({
           </div>
         )}
 
-      {/* 右侧操作：顺序对齐官方「收藏 / 评论 / 点赞 / 分享」；手机端收藏落在画面上，这里只留后三项 */}
+      {/* 右侧操作：顺序对齐官方「收藏 / 评论 / 点赞 / 分享」；四个按钮同一列垂直居中 */}
       <div className="feedv__rail">
         <button
           className="feedv__rail-btn feedv__rail-btn--fav"
@@ -1446,7 +1435,7 @@ function FeedSlide({
               </button>
             )}
           </div>
-          <p className="feedv__m-author">@红果短剧</p>
+          <p className="feedv__m-author">@{item.title}</p>
           <div className="feedv__m-introrow">
             <p className="feedv__m-intro">{item.intro !== '' ? item.intro : item.title}</p>
             <button type="button" className="feedv__m-more" onClick={() => setIntroOpen(true)}>

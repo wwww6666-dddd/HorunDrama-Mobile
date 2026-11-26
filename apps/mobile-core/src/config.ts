@@ -7,7 +7,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '1.3.2';
+export const VERSION = '1.3.3';
 
 /**
  * 独立 APK 与电脑端共用同一套核心：

@@ -96,21 +96,80 @@ const initialAccent = readAccent();
 document.documentElement.dataset.theme = initialTheme;
 document.documentElement.dataset.accent = initialAccent;
 
+/** 桌面壳里才有的东西：右上角窗口按钮的样式与拖动区（见 styles.css）。 */
+function syncShell(): void {
+  document.documentElement.dataset.shell = window.yimu === undefined ? 'web' : 'electron';
+}
+
+/** 深浅/主题色切换：GitHub 上 theme-toggle-effect 的圆形揭示做法。
+ *  WebView 支持 View Transitions 就用「从点击位置向外扩散」的过渡；
+ *  不支持或系统要求减少动效时，退成一次短淡出，绝不瞬切。 */
+interface ViewTransitionLike {
+  ready: Promise<void>;
+  finished: Promise<void>;
+}
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => ViewTransitionLike;
+};
+
+const lastPointer = {
+  x: window.innerWidth / 2,
+  y: window.innerHeight / 2,
+};
+window.addEventListener(
+  'pointerdown',
+  (event) => {
+    lastPointer.x = event.clientX;
+    lastPointer.y = event.clientY;
+  },
+  { capture: true, passive: true },
+);
+
+function runThemeTransition(commit: () => void): void {
+  const root = document.documentElement;
+  const doc = document as ViewTransitionDocument;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finish = (): void => {
+    root.classList.remove('theme-transitioning');
+    root.classList.remove('theme-fading');
+  };
+  if (reduce || typeof doc.startViewTransition !== 'function') {
+    root.classList.add('theme-fading');
+    commit();
+    window.setTimeout(finish, 380);
+    return;
+  }
+  const x = Math.max(0, Math.min(window.innerWidth, lastPointer.x));
+  const y = Math.max(0, Math.min(window.innerHeight, lastPointer.y));
+  const radius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y),
+  );
+  root.style.setProperty('--theme-reveal-x', `${Math.round(x)}px`);
+  root.style.setProperty('--theme-reveal-y', `${Math.round(y)}px`);
+  root.style.setProperty('--theme-reveal-r', `${Math.ceil(radius)}px`);
+  root.classList.add('theme-transitioning');
+  try {
+    const transition = doc.startViewTransition(commit);
+    void transition.finished.catch(() => undefined).finally(finish);
+  } catch {
+    commit();
+    finish();
+  }
+}
+
 /** 跟随系统时，系统切深浅要实时生效（Android WebView / 桌面浏览器都支持）。 */
 const systemThemeQuery = window.matchMedia('(prefers-color-scheme: light)');
 systemThemeQuery.addEventListener('change', () => {
   const mode = (localStorage.getItem('horun-theme-mode') as ThemeMode | null) ?? initialThemeMode;
   if (mode !== 'system') return;
   const next = systemTheme();
-  document.documentElement.dataset.theme = next;
-  useApp.setState({ theme: next });
-  void window.yimu?.setTheme?.(next).catch(() => undefined);
+  runThemeTransition(() => {
+    document.documentElement.dataset.theme = next;
+    useApp.setState({ theme: next });
+    void window.yimu?.setTheme?.(next).catch(() => undefined);
+  });
 });
-
-/** 桌面壳里才有的东西：右上角窗口按钮的样式与拖动区（见 styles.css）。 */
-function syncShell(): void {
-  document.documentElement.dataset.shell = window.yimu === undefined ? 'web' : 'electron';
-}
 
 export const useApp = create<AppState>((set, get) => ({
   // 首屏直接按 hash 落位：否则 #/feed、#/settings 这类深链会先渲染剧场，
@@ -136,19 +195,25 @@ export const useApp = create<AppState>((set, get) => ({
   },
   setThemeMode: (themeMode) => {
     const theme = resolveTheme(themeMode);
-    localStorage.setItem('horun-theme-mode', themeMode);
-    if (themeMode !== 'system') localStorage.setItem('horun-theme', theme);
-    document.documentElement.dataset.theme = theme;
-    syncShell();
-    // Win11 无边框窗口的 DWM 边框颜色跟 nativeTheme 走：不同步会留一条白边
-    void window.yimu?.setTheme?.(theme).catch(() => undefined);
-    set({ theme, themeMode });
+    if (get().themeMode === themeMode && get().theme === theme) return;
+    runThemeTransition(() => {
+      localStorage.setItem('horun-theme-mode', themeMode);
+      if (themeMode !== 'system') localStorage.setItem('horun-theme', theme);
+      document.documentElement.dataset.theme = theme;
+      syncShell();
+      // Win11 无边框窗口的 DWM 边框颜色跟 nativeTheme 走：不同步会留一条白边
+      void window.yimu?.setTheme?.(theme).catch(() => undefined);
+      set({ theme, themeMode });
+    });
   },
   toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
   setAccent: (accent) => {
-    localStorage.setItem('horun-accent', accent);
-    document.documentElement.dataset.accent = accent;
-    set({ accent });
+    if (get().accent === accent) return;
+    runThemeTransition(() => {
+      localStorage.setItem('horun-accent', accent);
+      document.documentElement.dataset.accent = accent;
+      set({ accent });
+    });
   },
   setCoreOk: (coreOk) => set({ coreOk }),
   setAccount: (account) => set({ account }),

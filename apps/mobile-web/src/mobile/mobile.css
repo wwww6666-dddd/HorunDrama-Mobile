@@ -21,7 +21,7 @@
   --m-text-2: rgba(246, 241, 234, 0.62);
   --m-text-3: rgba(246, 241, 234, 0.4);
   --m-accent: var(--ember, #ff5a37);
-  --m-accent-soft: color-mix(in srgb, var(--m-accent) 16%, transparent);
+  --m-accent-soft: var(--accent-soft, rgba(255, 90, 55, 0.16));
   --m-safe-top: env(safe-area-inset-top, 0px);
   --m-safe-bottom: env(safe-area-inset-bottom, 0px);
   --m-spring: cubic-bezier(0.32, 1.36, 0.42, 1);
@@ -6641,4 +6641,244 @@ html.m-mode .m-app .mt-act[data-kind='reserve'] .mt-act__icon {
 :root[data-theme='dark'] .ms-pill {
   background: var(--m-accent-soft) !important;
   color: var(--m-accent) !important;
+}
+
+/* =====================================================================
+   2026-11-26 交互整改：主题色背景 / 深浅过渡 / 页面过渡 / 首页播放适配
+   ===================================================================== */
+
+/* ---------- 主题色不再只染按钮：整页背景带同色极光 ---------- */
+html.m-mode .m-app {
+  background:
+    radial-gradient(120% 42% at 100% -8%, var(--accent-aurora-1, rgba(255, 90, 55, 0.16)) 0%, transparent 62%),
+    radial-gradient(95% 38% at 0% 10%, var(--accent-aurora-2, rgba(255, 90, 55, 0.08)) 0%, transparent 58%),
+    var(--m-bg) !important;
+}
+
+html.m-mode .m-app[data-route='home'] .m-scroll,
+html.m-mode .m-app[data-route='home'] .m-page,
+html.m-mode .m-app[data-route='me'] .m-scroll,
+html.m-mode .m-app[data-route='me'] .mm-me,
+html.m-mode .m-app[data-route='settings'] .m-scroll,
+html.m-mode .m-app[data-route='search'] .m-scroll {
+  background:
+    radial-gradient(115% 40% at 100% 0%, var(--accent-aurora-1, rgba(255, 90, 55, 0.16)) 0%, transparent 64%),
+    radial-gradient(90% 34% at 0% 8%, var(--accent-aurora-2, rgba(255, 90, 55, 0.08)) 0%, transparent 60%),
+    var(--m-bg) !important;
+}
+
+html.m-mode .m-app[data-route='feed'] {
+  background: #000 !important;
+}
+
+/* 我的页头图跟着主题色走，不再固定粉/绿 */
+html.m-mode .mm-hero {
+  background:
+    radial-gradient(120% 92% at 0% 0%, var(--accent-aurora-1, rgba(255, 90, 55, 0.16)) 0%, transparent 58%),
+    radial-gradient(95% 74% at 100% 6%, var(--accent-aurora-2, rgba(255, 90, 55, 0.08)) 0%, transparent 62%),
+    linear-gradient(180deg, var(--m-bg-raise) 0%, var(--m-bg) 100%) !important;
+}
+
+/* 设置卡片带一点主题色，切色时整页不是只换一个小圆点 */
+html.m-mode .ms-card {
+  background:
+    linear-gradient(0deg, var(--accent-aurora-3, rgba(255, 90, 55, 0.05)), var(--accent-aurora-3, rgba(255, 90, 55, 0.05))),
+    var(--m-bg-raise) !important;
+  transition: background-color 0.35s var(--m-ease);
+}
+
+/* ---------- 深浅切换：圆形揭示 + 兜底淡入 ---------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+::view-transition-old(root) {
+  z-index: -1;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+  animation: theme-circle-reveal 0.56s cubic-bezier(0.22, 0.9, 0.28, 1) both;
+  clip-path: circle(0px at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+}
+
+@keyframes theme-circle-reveal {
+  to {
+    clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+  }
+}
+
+/* 过渡期间暂停其他 transition，避免颜色/位移动画打架 */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
+}
+
+/* 不支持 View Transitions 的 WebView：短淡入，而不是瞬间换皮 */
+html.theme-fading {
+  animation: theme-fallback 0.36s var(--m-ease) both;
+}
+
+html.theme-fading::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  background: var(--m-bg);
+  animation: theme-fallback-cover 0.36s var(--m-ease) both;
+}
+
+@keyframes theme-fallback {
+  from { opacity: 0.62; }
+  to { opacity: 1; }
+}
+
+@keyframes theme-fallback-cover {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
+
+/* ---------- 页面/播放器进入过渡 ---------- */
+html.m-mode .m-app[data-route='home'] .m-page,
+html.m-mode .m-app[data-route='me'] .m-page,
+html.m-mode .m-app[data-route='settings'] .m-page,
+html.m-mode .m-app[data-route='search'] .m-page {
+  animation: m-page-in 0.3s var(--m-ease) both !important;
+}
+
+html.m-mode .m-app[data-route='feed'] .m-page {
+  animation: m-feed-in 0.26s var(--m-ease) both !important;
+}
+
+@keyframes m-feed-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+html.m-mode .m-playwrap {
+  animation: m-play-in 0.3s var(--m-ease) both;
+}
+
+@keyframes m-play-in {
+  from {
+    opacity: 0;
+    transform: scale(1.018);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 推荐流切到下一条时，画面淡入而不是硬切 */
+html.m-mode .feedv__slide--active .feedv__frame {
+  animation: feed-frame-in 0.28s var(--m-ease) both;
+}
+
+@keyframes feed-frame-in {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
+/* ---------- 首页视频：完整画面，不裁切 ---------- */
+html.m-mode .feedv__rail-btn--fav {
+  display: flex !important;
+}
+
+@media (max-width: 599px) {
+  html.m-mode .feedv__frame video {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: transparent !important;
+  }
+
+  /* contain 留下的上下区域用海报虚化兜底，避免死黑 */
+  html.m-mode .feedv__poster {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-size: cover !important;
+    background-position: center !important;
+    filter: blur(30px) brightness(0.32) saturate(1.3) !important;
+    transform: scale(1.16) !important;
+    opacity: 0.94;
+  }
+
+  html.m-mode .feedv__waiting {
+    top: 0;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.16) !important;
+  }
+
+  /* 收藏回到右栏，与评论/点赞/分享共用同一条中轴 */
+  html.m-mode .feedv__rail-btn--fav {
+    display: flex !important;
+  }
+
+  html.m-mode .feedv__rail {
+    align-items: center;
+  }
+
+  /* 头像放在四按钮上方，不再按 16:9 黑条高度算 */
+  html.m-mode .feedv__author {
+    top: auto !important;
+    bottom: calc(var(--feed-bottom) + var(--feed-watch-h) + 300px) !important;
+  }
+
+  html.m-mode .feedv__vt-title {
+    top: calc(var(--m-safe-top) + 56px) !important;
+  }
+
+  html.m-mode .feedv__quality-busy {
+    top: calc(var(--m-safe-top) + 58px) !important;
+  }
+}
+
+/* ---------- 简介：从底部向上展开，内容可滚 ---------- */
+html.m-mode .feedv__synopsis-panel {
+  bottom: 0 !important;
+  max-height: min(76dvh, calc(100dvh - var(--m-safe-top) - 18px)) !important;
+  display: flex;
+  flex-direction: column;
+  transform-origin: bottom center;
+  animation: feedv-synopsis-up 0.38s var(--m-spring) both !important;
+}
+
+html.m-mode .feedv__synopsis-panel p {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+
+@keyframes feedv-synopsis-up {
+  from {
+    opacity: 0;
+    transform: translateY(46px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+html.m-mode .mm-moon {
+  transition: transform 0.28s var(--m-spring), background-color 0.28s var(--m-ease);
+}
+
+html.m-mode .mm-moon:active {
+  transform: scale(0.9) rotate(-12deg);
 }
