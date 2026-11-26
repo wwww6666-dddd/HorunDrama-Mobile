@@ -561,7 +561,10 @@ export async function transcodeEpisode(
     if (enhance !== 'off') log.info(`画质增强=${enhance} 滤镜=${ENHANCE_FILTERS[enhance]}`);
 
     onProgress({ progress: 0.45, message: remux ? '解密封装中' : '转码中' });
-    let encoder = await detectEncoder();
+    // 纯搬运（copy）不需要任何编码器。以前这里无条件调 detectEncoder，
+    // 在没有 libx264/硬编的 Android 包上会先抛“没有 H.264 编码器”，
+    // 导致明明能硬解 HEVC 的 1080p 也被误判失败，只剩 360p。
+    let encoder = remux ? NATIVE_ENCODER : await detectEncoder();
     const runEncode = async (spec: EncoderSpec): Promise<void> => {
       await runFfmpeg(
         ffmpeg,
