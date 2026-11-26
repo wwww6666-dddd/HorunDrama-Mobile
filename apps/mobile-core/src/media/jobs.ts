@@ -21,6 +21,7 @@ import path from 'node:path';
 import { resolveEpisodeStream, type StreamChoice } from '../sources/playback.ts';
 import { resolveWebStream } from '../sources/webplay.ts';
 import {
+  canEncodeH264,
   existingMedia,
   existingMediaAny,
   mediaPathFor,
@@ -232,6 +233,11 @@ async function startAppJobInner(
   foreground: boolean,
 ): Promise<Job> {
   try {
+    // 侧车给的是 HEVC/CENC，不能硬解就必须重编码；内置 mini ffmpeg 没有 libx264 时
+    // 不要起注定失败的高清任务，让上层直接回落到官网 360p。
+    if (!allowHevc && !(await canEncodeH264())) {
+      throw new Error('当前设备不能硬解 HEVC，内置 ffmpeg 也没有 H.264 编码器');
+    }
     const stream = await resolveEpisodeStream(episodeId, quality, 1);
     if (stream === null) throw new Error('上游暂时取不到这一集的播放地址');
 

@@ -200,10 +200,21 @@ async function detectEncoder(): Promise<EncoderSpec> {
       }
       log.info(`编码器：${spec.name} 在这台机器上不可用，试下一个`);
     }
-    log.info('编码器：使用 libx264');
-    return NATIVE_ENCODER;
+    if (await probeEncoder(ffmpeg, NATIVE_ENCODER)) {
+      log.info('编码器：使用 libx264');
+      return NATIVE_ENCODER;
+    }
+    throw new Error('内置 ffmpeg 没有可用的 H.264 编码器');
   })();
   return encoderPromise;
+}
+
+/** 不能硬解 HEVC 的手机上，先确认内置 ffmpeg 真能编 H.264，再决定要不要起高清任务。 */
+export async function canEncodeH264(): Promise<boolean> {
+  return detectEncoder().then(
+    () => true,
+    () => false,
+  );
 }
 
 /**
@@ -414,24 +425,34 @@ function runFfmpeg(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(ffmpeg, args, { windowsHide: true });
-    let stderrTail = '';
+    let errorTail = '';
     const onAbort = (): void => {
       child.kill();
     };
     signal?.addEventListener('abort', onAbort, { once: true });
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      for (const line of chunk.split('\n')) {
-        const m = /^out_time_ms=(\d+)/.exec(line.trim());
-        if (m?.[1] !== undefined && durationSec > 0) {
-          const done = Number.parseInt(m[1], 10) / 1_000_000;
-          onProgress(Math.max(0, Math.min(1, done / durationSec)));
-        }
+    // 不依赖 `-progress pipe:1`：部分精简版 ffmpeg 没编 pipe 协议，
+    // 会在启动时直接报 "Protocol not found"。默认 stderr 的 `time=` 统计
+    // 所有构建都有，用它推进度；只保留非统计行给失败信息。
+    const consumeLine = (raw: string): void => {
+      const line = raw.trim();
+      if (line === '') return;
+      const m = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(line);
+      if (m !== null && durationSec > 0) {
+        const done =
+          Number.parseInt(m[1] ?? '0', 10) * 3600 +
+          Number.parseInt(m[2] ?? '0', 10) * 60 +
+          Number.parseFloat(m[3] ?? '0');
+        onProgress(Math.max(0, Math.min(1, done / durationSec)));
+        return;
       }
-    });
+      if (/^(frame=|fps=|size=|bitrate=|speed=|out_time=|dup_frames=|drop_frames=|progress=)/.test(line)) {
+        return;
+      }
+      errorTail = (errorTail + raw + '\n').slice(-2000);
+    };
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk: string) => {
-      stderrTail = (stderrTail + chunk).slice(-2000);
+      for (const line of chunk.split(/\r|\n/)) consumeLine(line);
     });
     child.on('error', (err) => {
       signal?.removeEventListener('abort', onAbort);
@@ -441,7 +462,7 @@ function runFfmpeg(
       signal?.removeEventListener('abort', onAbort);
       if (signal?.aborted === true) reject(new Error('已取消'));
       else if (code === 0) resolve();
-      else reject(new Error(`ffmpeg 退出码 ${String(code)}：${stderrTail.slice(-400)}`));
+      else reject(new Error(`ffmpeg 退出码 ${String(code)}：${errorTail.slice(-400)}`));
     });
   });
 }
@@ -518,7 +539,7 @@ export async function transcodeEpisode(
         args.push('-decryption_key', stream.decryptionKey);
       }
       if (remux) {
-        args.push('-i', encPath, '-c', 'copy', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', tmpOut);
+        args.push('-i', encPath, '-c', 'copy', '-movflags', '+faststart', tmpOut);
         return args;
       }
       args.push(
@@ -532,9 +553,6 @@ export async function transcodeEpisode(
         '96k',
         '-movflags',
         '+faststart',
-        '-progress',
-        'pipe:1',
-        '-nostats',
         tmpOut,
       );
       return args;
