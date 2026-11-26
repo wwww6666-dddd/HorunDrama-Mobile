@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
-import { api, coverOf, type SeriesDetail } from '../api.ts';
+import { api, coverOf, type EpisodeWatchEntry, type ProgressEntry, type SeriesDetail } from '../api.ts';
 import { useAsync } from '../hooks/useAsync.ts';
 import { useNav } from './nav.tsx';
 import { readSnapshot, writeSnapshot } from './snapshot.ts';
 import { Empty, Icon, Loading } from './ui.tsx';
+
+function fmtClock(sec: number): string {
+  if (!Number.isFinite(sec) || sec <= 0) return '';
+  const total = Math.round(sec);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 /** 剧集详情：iOS 风格的大封面抽屉，选集、追剧、收藏、批量下载 */
 export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: string) => void }): JSX.Element {
@@ -16,6 +24,10 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
   );
   const follow = useAsync((signal) => api.followFor(seriesId, signal), [seriesId]);
   const fav = useAsync((signal) => api.favoriteFor(seriesId, signal), [seriesId]);
+  /** 上次看到哪一集、哪一秒：所有入口都走这里，不再只从历史页续播 */
+  const progress = useAsync<ProgressEntry | null>((signal) => api.progressFor(seriesId, signal), [seriesId]);
+  /** 每集看到哪里：详情页直接标已看/正在看 */
+  const watch = useAsync<EpisodeWatchEntry[]>((signal) => api.episodeWatch(seriesId, signal), [seriesId]);
 
   const [expand, setExpand] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -38,6 +50,25 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
   const cover = drama === undefined ? '' : coverOf(drama);
   const following = follow.data?.following === true;
   const favorited = fav.data?.favorite === true;
+
+  const watchMap = new Map((watch.data ?? []).map((item) => [item.episodeId, item]));
+  const last = progress.data;
+  const lastEpisode = last === null ? undefined : episodes.find((ep) => ep.episodeId === last.episodeId);
+  const resumeNo = lastEpisode?.no ?? last?.episodeNo ?? 0;
+  const resumeAt = last?.positionSec ?? 0;
+  const watchedCount =
+    (watch.data ?? []).filter((item) => item.completed).length +
+    // 老数据只有主进度、没有分集记录时，把当前集之前的集也算作已看过
+    ((watch.data ?? []).length === 0 && last !== null ? Math.max(0, last.episodeNo - 1) : 0);
+  const firstPlayable = episodes.find((ep) => ep.playable) ?? episodes[0];
+
+  const playLast = (): void => {
+    if (last !== null) {
+      play(seriesId, last.episodeId, resumeNo > 0 ? resumeNo : last.episodeNo);
+      return;
+    }
+    if (firstPlayable !== undefined) play(seriesId, firstPlayable.episodeId, firstPlayable.no);
+  };
 
   const toggleFollow = (): void => {
     if (drama === undefined) return;
@@ -105,15 +136,11 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
       </div>
 
       <div className="m-detail__actions">
-        <button
-          type="button"
-          className="m-btn m-btn--primary m-btn--block"
-          onClick={() => {
-            const first = episodes.find((e) => e.playable) ?? episodes[0];
-            if (first !== undefined) play(seriesId, first.episodeId, first.no);
-          }}
-        >
-          <Icon name="play" size={15} /> 从第 1 集开始
+        <button type="button" className="m-btn m-btn--primary m-btn--block m-detail__resume" onClick={playLast}>
+          <Icon name="play" size={15} />
+          {last !== null
+            ? `继续观看 · 第 ${resumeNo > 0 ? resumeNo : last.episodeNo} 集${resumeAt > 0 ? ` · ${fmtClock(resumeAt)}` : ''}`
+            : '从第 1 集开始'}
         </button>
         <button type="button" className="m-btn m-btn--icon" data-on={following} onClick={toggleFollow} aria-label="追剧">
           <Icon name="bookmark" size={18} />
@@ -124,6 +151,14 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
           <span>收藏</span>
         </button>
       </div>
+
+      {last !== null && (
+        <p className="m-detail__resume-note">
+          上次看到第 {resumeNo > 0 ? resumeNo : last.episodeNo} 集
+          {resumeAt > 0 ? ` · ${fmtClock(resumeAt)}` : ''}
+          {watchedCount > 0 ? ` · 已看 ${watchedCount} 集` : ''}
+        </p>
+      )}
 
       {drama.intro !== '' && (
         <div className="m-detail__intro">
@@ -150,7 +185,10 @@ export function Detail({ seriesId, onOpen }: { seriesId: string; onOpen: (id: st
               type="button"
               className="m-ep"
               data-active={picked.includes(ep.episodeId)}
+              data-current={last?.episodeId === ep.episodeId}
+              data-watched={watchMap.get(ep.episodeId)?.completed === true || (last !== null && ep.no < last.episodeNo)}
               disabled={!ep.playable && !selecting}
+              aria-label={`第 ${ep.no} 集${watchMap.get(ep.episodeId)?.completed === true ? '，已看完' : last?.episodeId === ep.episodeId ? '，上次看到这里' : ''}`}
               onClick={() => {
                 if (selecting) {
                   setPicked((prev) => (prev.includes(ep.episodeId) ? prev.filter((id) => id !== ep.episodeId) : [...prev, ep.episodeId]));

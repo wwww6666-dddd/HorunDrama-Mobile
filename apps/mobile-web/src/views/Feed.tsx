@@ -130,6 +130,8 @@ export function Feed(): JSX.Element {
   const [tab, setTab] = useState<FeedTab>('recommend');
   const [slideDir, setSlideDir] = useState(1);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const indexRef = useRef(0);
+  const scrollSettleTimer = useRef<number | null>(null);
   /** 左侧推荐片单：跟随当前条自动滚动到可视区 */
   const sideListRef = useRef<HTMLDivElement | null>(null);
   const sideItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -154,6 +156,12 @@ export function Feed(): JSX.Element {
       if (chromeTimer.current !== null) window.clearTimeout(chromeTimer.current);
     };
   }, [wake]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollSettleTimer.current !== null) window.clearTimeout(scrollSettleTimer.current);
+    };
+  }, []);
 
   // 播放设置：进入推荐页读一次，控制条设置面板改了立即写回
   useEffect(() => {
@@ -428,6 +436,7 @@ export function Feed(): JSX.Element {
         });
         if (reset) writeSnapshot(`feed:${tab}`, res.items);
         if (reset) {
+          indexRef.current = 0;
           setIndex(0);
           window.requestAnimationFrame(() => {
             scrollerRef.current?.scrollTo({ top: 0 });
@@ -447,6 +456,7 @@ export function Feed(): JSX.Element {
   );
 
   useEffect(() => {
+    indexRef.current = 0;
     setIndex(0);
     cursorRef.current = '';
     scrollerRef.current?.scrollTo({ top: 0 });
@@ -479,9 +489,30 @@ export function Feed(): JSX.Element {
   const onScroll = (): void => {
     const el = scrollerRef.current;
     if (el === null) return;
-    const i = Math.round(el.scrollTop / Math.max(1, el.clientHeight));
-    if (i !== index) setIndex(i);
-    if (hasMore && i >= items.length - 3) void load(false);
+    const raw = Math.round(el.scrollTop / Math.max(1, el.clientHeight));
+    if (hasMore && raw >= items.length - 3) void load(false);
+    // 滚动过程中不立即切 active：否则一次惯性滑过 3 条，会依次起播 3 部剧。
+    // 等吸附稳定后一次只前进/后退一条；真被甩过头也回拉到相邻那条。
+    if (scrollSettleTimer.current !== null) window.clearTimeout(scrollSettleTimer.current);
+    scrollSettleTimer.current = window.setTimeout(() => {
+      scrollSettleTimer.current = null;
+      const latest = scrollerRef.current;
+      if (latest === null) return;
+      const settled = Math.round(latest.scrollTop / Math.max(1, latest.clientHeight));
+      const from = indexRef.current;
+      if (settled === from) return;
+      const target = from + (settled > from ? 1 : -1);
+      if (Math.abs(settled - from) > 1) {
+        latest.scrollTo({ top: target * latest.clientHeight, behavior: 'smooth' });
+      }
+      indexRef.current = target;
+      setIndex(target);
+    }, 150);
+  };
+
+  const activate = (nextIndex: number): void => {
+    indexRef.current = nextIndex;
+    setIndex(nextIndex);
   };
 
   const next = (): void => {
@@ -495,7 +526,7 @@ export function Feed(): JSX.Element {
 
   const removeAt = (i: number): void => {
     setItems((prev) => prev.filter((_, j) => j !== i));
-    if (i < index) setIndex((n) => Math.max(0, n - 1));
+    if (i < index) activate(Math.max(0, index - 1));
     flash('已减少此类推荐');
   };
 
@@ -1117,6 +1148,15 @@ function FeedSlide({
     location.hash = `#/play/${item.seriesId}/${item.episodeId}/${item.episodeNo}`;
   };
 
+  /** 点击画面不再暂停；推荐流也给一个明确的暂停/播放按钮 */
+  const toggleTransport = (): void => {
+    const player = playerRef.current;
+    const media = player?.media as HTMLVideoElement | null;
+    if (player === null || media === null) return;
+    if (media.paused) void player.play().catch(() => undefined);
+    else player.pause();
+  };
+
   const toggleLike = async (): Promise<void> => {
     try {
       const res = await api.toggleLike({
@@ -1233,6 +1273,7 @@ function FeedSlide({
             url={url}
             startAt={startAt}
             rate={rate}
+            clickToToggle={false}
             onReady={onReady}
             onPrev={onPrev}
             onNext={onNext}
@@ -1423,6 +1464,14 @@ function FeedSlide({
       {mob !== null && (
         <div className="feedv__m-stage">
           <div className="feedv__m-top">
+            <button
+              type="button"
+              className="feedv__transport"
+              onClick={toggleTransport}
+              aria-label={playing ? '暂停' : '播放'}
+            >
+              {playing ? '❚❚' : '▶'}
+            </button>
             <button
               type="button"
               className="feedv__dm"

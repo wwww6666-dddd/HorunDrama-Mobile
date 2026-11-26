@@ -58,6 +58,8 @@ public class MainActivity extends Activity {
     private boolean lightBars;
     /** 视频页/推荐页允许跟随传感器横屏；其他页面锁定竖屏 */
     private boolean orientationAuto;
+    /** 播放页点“全屏横屏”后锁定横屏；退出时恢复传感器 */
+    private boolean fullscreenLandscape;
     /** 横屏视频页请求了沉浸式；onResume/换肤重设系统栏时必须保持隐藏状态栏 */
     private boolean immersive;
     /** 系统栏/刘海占位（px），由 WindowInsets 动态给，适配竖屏状态栏、横屏刘海与手势条 */
@@ -92,7 +94,14 @@ public class MainActivity extends Activity {
         requestSmoothRefresh();
 
         String deepHash = routeFromUri(getIntent() == null ? null : getIntent().getData());
-        if (deepHash != null) pendingHash = deepHash;
+        if (deepHash != null) {
+            pendingHash = deepHash;
+        } else {
+            // 进程被系统回收/旋转重建后，不要让 WebView 重新从推荐流开始：
+            // 网页每次路由变化都会通过 HorunAndroid.setLastHash 写进这里。
+            String saved = getSharedPreferences("horun", MODE_PRIVATE).getString("lastHash", DEFAULT_HOME);
+            if (saved != null && saved.startsWith("/#/")) pendingHash = saved;
+        }
 
         setupWebView();
         boot();
@@ -208,7 +217,7 @@ public class MainActivity extends Activity {
                 fullscreenBox.setVisibility(View.VISIBLE);
                 web.setVisibility(View.GONE);
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+                applyOrientation();
                 hideSystemUi();
             }
 
@@ -222,9 +231,7 @@ public class MainActivity extends Activity {
                 if (customViewCallback != null) customViewCallback.onCustomViewHidden();
                 customViewCallback = null;
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                setRequestedOrientation(orientationAuto
-                        ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                        : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                applyOrientation();
                 showSystemUi();
             }
         };
@@ -351,6 +358,45 @@ public class MainActivity extends Activity {
         if (hash == null) return;
         pendingHash = hash;
         if (NodeCore.isReady() && web != null) web.loadUrl(NodeCore.BASE_URL + hash);
+    }
+
+    /**
+     * 原生方向策略：全屏横屏 > 自动 > 竖屏。
+     * 单独抽出来，onShowCustomView/onHideCustomView/桥接调用都走同一套，避免互相覆盖。
+     */
+    private void applyOrientation() {
+        int next;
+        if (fullscreenLandscape) {
+            next = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        } else if (orientationAuto) {
+            next = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR;
+        } else {
+            next = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        }
+        applyCutoutMode(fullscreenLandscape);
+        try {
+            setRequestedOrientation(next);
+        } catch (Exception ignored) {
+            // 个别 ROM 会拒绝锁横屏，页面仍能跟随传感器
+        }
+    }
+
+    /**
+     * 全屏横屏时不要让画面铺进刘海/挖孔：部分手机 WebView 的 safe-area 在
+     * LAYOUT_FULLSCREEN 下返回 0，视频左右会被切掉一截。NEVER 把窗口限制在
+     * 挖孔以外的完整矩形，退出全屏再恢复 edge-to-edge。
+     */
+    private void applyCutoutMode(boolean fullscreen) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return;
+        try {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = fullscreen
+                    ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
+                    : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        } catch (Exception ignored) {
+            // 非挖孔屏或 ROM 不支持，保持默认
+        }
     }
 
     /**
@@ -558,7 +604,10 @@ public class MainActivity extends Activity {
         applyBars(lightBars);
         if (NodeCore.isReady()) {
             hideError();
-            loadHome();
+            // 只补"还没加载过页面"的情况；从桌面切回来时 WebView 里的 hash/播放进度
+            // 必须原样保留，不能每次 onResume 都 loadHome 把人重置回推荐流。
+            String current = web.getUrl();
+            if (current == null || current.isEmpty() || current.startsWith("about:")) loadHome();
         }
     }
 
@@ -623,18 +672,42 @@ public class MainActivity extends Activity {
         }
 
         /**
-         * 横屏适配：视频页传 auto 跟随传感器，离开视频页传 portrait 锁回竖屏。
-         * 只由网页按路由调用，不改变设置/剧场等非播放页的竖屏体验。
+         * 横屏适配：视频页传 auto 跟随传感器，播放页“全屏横屏”传 landscape 锁横屏，
+         * 离开视频页或退出全屏传 portrait/auto。只由网页按路由调用。
          */
         @JavascriptInterface
         public void setOrientation(String mode) {
-            final boolean auto = "auto".equals(mode);
+            final String safe = mode == null ? "portrait" : mode;
             runOnUiThread(() -> {
-                orientationAuto = auto;
-                setRequestedOrientation(auto
-                        ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR
-                        : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                fullscreenLandscape = "landscape".equals(safe);
+                orientationAuto = "auto".equals(safe);
+                if (fullscreenLandscape) {
+                    immersive = true;
+                    hideSystemUi();
+                }
+                applyOrientation();
             });
+        }
+
+        /** 播放页“全屏横屏”按钮：进入锁横屏 + 隐藏系统栏；退出恢复传感器。 */
+        @JavascriptInterface
+        public void setFullscreenLandscape(boolean on) {
+            runOnUiThread(() -> {
+                fullscreenLandscape = on;
+                orientationAuto = !on;
+                immersive = on;
+                applyOrientation();
+                if (on) hideSystemUi();
+                else showSystemUi();
+            });
+        }
+
+        /** 记住最后停留的页面，进程被回收/旋转重建后由原生带回同一个 hash。 */
+        @JavascriptInterface
+        public void setLastHash(String hash) {
+            if (hash == null || !hash.startsWith("/#/")) return;
+            pendingHash = hash;
+            getSharedPreferences("horun", MODE_PRIVATE).edit().putString("lastHash", hash).apply();
         }
 
         /** 横屏播放时隐藏状态栏/导航栏；回到竖屏或离开播放器时恢复。 */
@@ -659,15 +732,20 @@ public class MainActivity extends Activity {
             });
         }
 
-        /** 四线程 Range 分段下载 APK；URL 由网页从 GitHub release 里取。 */
+        /** 多线程 Range 分段下载 APK；URL 由网页从 GitHub release 里取。 */
         @JavascriptInterface
-        public void downloadUpdate(String url, String fileName, String sha256, int threads) {
-            runOnUiThread(() -> UpdateManager.get(MainActivity.this).start(url, fileName, sha256, threads));
+        public void downloadUpdate(String url, String fileName, String sha256, int threads, double expectedSize) {
+            runOnUiThread(() -> UpdateManager.get(MainActivity.this).start(url, fileName, sha256, threads, (long) expectedSize));
         }
 
         @JavascriptInterface
         public String getUpdateState() {
             return UpdateManager.get(MainActivity.this).getState();
+        }
+
+        @JavascriptInterface
+        public String getUpdateProgress() {
+            return UpdateManager.get(MainActivity.this).getProgressJson();
         }
 
         @JavascriptInterface

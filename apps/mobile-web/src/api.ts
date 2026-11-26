@@ -156,6 +156,16 @@ export interface ProgressEntry {
   updatedAt: number;
 }
 
+export interface EpisodeWatchEntry {
+  seriesId: string;
+  episodeId: string;
+  episodeNo: number;
+  positionSec: number;
+  durationSec: number;
+  completed: boolean;
+  updatedAt: number;
+}
+
 export interface AccountResume {
   seriesId: string;
   episodeId: string;
@@ -320,6 +330,8 @@ export const api = {
   continueWatching: (limit = 12, signal?: AbortSignal) => call<ProgressEntry[]>(`/api/progress/continue?limit=${limit}`, signal),
   progressFor: (seriesId: string, signal?: AbortSignal) =>
     call<ProgressEntry | null>(`/api/progress?seriesId=${encodeURIComponent(seriesId)}`, signal),
+  episodeWatch: (seriesId: string, signal?: AbortSignal) =>
+    call<EpisodeWatchEntry[]>(`/api/progress/episodes?seriesId=${encodeURIComponent(seriesId)}`, signal),
   saveProgress: (
     input: {
       seriesId: string;

@@ -5,15 +5,32 @@
  * /novel/commentapi/comment/list/<episodeId>/v1/（lq 主机），body 里带
  * book_id/playlet_item_duration/start_offset_time/group_id/comment_type 等。
  */
+import { createRequire } from 'node:module';
+import { randomBytes } from 'node:crypto';
 import { readDevice, readSession } from '../account/session.ts';
 import { fetchAccountProfile } from '../account/profile.ts';
 import { createLogger } from '../util/log.ts';
 import { TtlCache } from '../util/cache.ts';
 
 const log = createLogger('comments');
+const require = createRequire(import.meta.url);
+const CommentSign = require('../util/comment-sign.cjs') as {
+  buildQuery: (input: { stampMs: number; deviceId?: string; installId?: string }) => string;
+  newDeviceId: () => string;
+  signCommentHeaders: (input: {
+    rawQuery: string;
+    stamp: number;
+    nonce: Buffer;
+    aid?: string;
+  }) => Record<string, string>;
+  NONCE_BYTES: number;
+};
 
-const COMMENT_HOST = 'https://api5-normal-lq.fqnovel.com';
-const REPLY_HOST = 'https://api5-normal-lq.fqnovel.com';
+const COMMENT_HOST = 'https://api5-normal-sinfonlineb.fqnovel.com';
+const REPLY_HOST = 'https://api5-normal-sinfonlineb.fqnovel.com';
+const COMMENT_UA =
+  'com.phoenix.read/73532 (Linux; U; Android 16; zh_CN; 25053RT47C; Build/BP2A.250605.031.A3; ' +
+  'Cronet/TTNetVersion:04657795 2026-01-23 QuicVersion:c67e9834 2025-09-08)';
 
 export interface CommentUser {
   userId: string;
@@ -103,6 +120,36 @@ function num(v: unknown): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0;
 }
 
+/**
+ * 评论接口需要官方客户端的 X-Gorgon/X-Argus/X-Ladon 组合签名。
+ * 旧版 `/sign` 签名能过内容接口，但评论接口会返回 110001；
+ * 这里改用红果客户端同款的带 nonce 签名，并生成同一套 query。
+ */
+function signCommentRequest(
+  path: string,
+  source: number,
+  channel: number,
+): { url: string; headers: Record<string, string> } {
+  const stampMs = Date.now();
+  const stamp = Math.floor(stampMs / 1000);
+  const nonce = randomBytes(11);
+  const device = (readDevice() ?? {}) as Device;
+  const deviceId = String(device.device_id ?? '') !== '' ? String(device.device_id) : CommentSign.newDeviceId();
+  const installId = String(device.install_id ?? '') !== '' ? String(device.install_id) : CommentSign.newDeviceId();
+  const rawQuery = CommentSign.buildQuery({ stampMs, deviceId, installId });
+  const headers = {
+    'user-agent': String(device.user_agent ?? COMMENT_UA),
+    accept: 'application/json',
+    'x-xs-from-web': '0',
+    'sdk-version': '2',
+    'content-type': 'application/json; charset=utf-8',
+    'comment-source': String(source),
+    'server-channel': String(channel),
+    ...CommentSign.signCommentHeaders({ rawQuery, stamp, nonce }),
+  };
+  return { url: `${path}?${rawQuery}`, headers };
+}
+
 export function fetchComments(input: {  seriesId: string;
   episodeId: string;
   cursor?: string;
@@ -115,7 +162,6 @@ export function fetchComments(input: {  seriesId: string;
   const key = `comments:${input.episodeId}:${cursor}:${count}`;
   return cache.wrap(key, async () => {
     const session = readSession();
-    const device = (readDevice() ?? {}) as Device;
     const path = `/novel/commentapi/comment/list/${input.episodeId}/v1/`;
     const body = JSON.stringify({
       aid: 8662,
@@ -134,41 +180,34 @@ export function fetchComments(input: {  seriesId: string;
       server_channel: 18,
       sort: 1,
     });
-
-    const pairs = Object.entries(baseQuery(device)).map(([k, v]) => [k, String(v)]);
-    const signed = await fetch(signerUrl(), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        path,
-        query: pairs,
-        body,
-        deviceId: String(device.device_id ?? ''),
-        version: '7.3.9.32',
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!signed.ok) throw new Error(`签名服务不可用（HTTP ${signed.status}）`);
-    const sig = (await signed.json()) as { query?: string; headers?: Record<string, string> };
-
-    const res = await fetch(`${COMMENT_HOST}${path}?${sig.query ?? ''}`, {
+    const signed = signCommentRequest(path, 4, 18);
+    const res = await fetch(`${COMMENT_HOST}${signed.url}`, {
       method: 'POST',
       headers: {
-        ...(sig.headers ?? {}),
+        ...signed.headers,
         ...(session.cookie !== '' ? { cookie: session.cookie } : {}),
-        'content-type': 'application/json',
-        accept: 'application/json',
-        'user-agent': String(device.user_agent ?? 'com.phoenix.read/73932'),
       },
       body,
       signal: AbortSignal.timeout(20000),
     });
-    const json = (await res.json()) as {
+    const text = await res.text();
+    let json: {
       code?: number;
+      Code?: number;
       message?: string;
       data?: { data_list?: Array<Record<string, unknown>>; common_list_info?: Record<string, unknown> };
     };
-    if (json.code !== 0) throw new Error(`评论接口 code=${String(json.code)} ${json.message ?? ''}`.trim());
+    try {
+      json = JSON.parse(text) as typeof json;
+    } catch {
+      log.error(`评论接口非 JSON：HTTP ${res.status}，${text.slice(0, 180)}`);
+      throw new Error(`评论接口 HTTP ${res.status}，返回内容不是 JSON`);
+    }
+    const code = json.code ?? json.Code;
+    if (code !== 0) {
+      log.error(`评论接口 HTTP ${res.status} code=${String(code)} body=${text.slice(0, 240)}`);
+      throw new Error(`评论接口 code=${String(code)} ${json.message ?? ''}`.trim());
+    }
 
     const list = json.data?.data_list ?? [];
     const items: CommentItem[] = [];

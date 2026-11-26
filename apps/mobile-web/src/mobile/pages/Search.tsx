@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { api, coverOf, type Drama, type Paged, type RankEntry } from '../../api.ts';
-import { APP_AUTHOR, APP_VERSION, FEEDBACK_URL, GITHUB_URL, copyToClipboard, openExternalUrl } from '../../app-info.ts';
+import { APP_AUTHOR, APP_VERSION, MOBILE_FEEDBACK_URL, MOBILE_GITHUB_URL, copyToClipboard, openExternalUrl } from '../../app-info.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
 import { useApp } from '../../store.ts';
 import { useNav } from '../nav.tsx';
@@ -474,7 +474,7 @@ export function About(): JSX.Element {
             label="反馈（复制链接）"
             chevron
             onClick={() => {
-              void copyToClipboard(FEEDBACK_URL).then(() => setNote('反馈链接已复制'));
+              void copyToClipboard(MOBILE_FEEDBACK_URL).then(() => setNote('反馈链接已复制'));
             }}
           />
         </div>
@@ -489,7 +489,7 @@ export function About(): JSX.Element {
           type="button"
           className="m-link"
           onClick={() => {
-            void openExternalUrl(GITHUB_URL);
+            void openExternalUrl(MOBILE_GITHUB_URL);
           }}
         >
           项目主页

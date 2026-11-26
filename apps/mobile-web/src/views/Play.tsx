@@ -91,7 +91,7 @@ function MpIcon({
   kind,
   size = 26,
 }: {
-  kind: 'star' | 'comment' | 'heart' | 'share' | 'more' | 'clock' | 'clear' | 'chev';
+  kind: 'star' | 'comment' | 'heart' | 'share' | 'more' | 'clock' | 'clear' | 'chev' | 'expand' | 'pause' | 'play';
   size?: number;
 }): JSX.Element {
   const paths: Record<string, JSX.Element> = {
@@ -126,6 +126,19 @@ function MpIcon({
     ),
     clear: <path d="M9 4H4v5M15 4h5v5M4 15v5h5M20 15v5h-5" />,
     chev: <path d="M9 5l7 7-7 7" />,
+    expand: (
+      <>
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+        <path d="M8 8l-4-4M16 8l4-4M8 16l-4 4M16 16l4 4" />
+      </>
+    ),
+    pause: (
+      <>
+        <rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none" />
+        <rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none" />
+      </>
+    ),
+    play: <path d="M8 5l11 7-11 7z" fill="currentColor" stroke="none" />,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={kind === 'star' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -143,6 +156,8 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [chromeVisible, setChromeVisible] = useState(true);
+  /** 全屏横屏按钮：原生锁横屏 + 隐藏系统栏，页面只保留视频/控件 */
+  const [fullLandscape, setFullLandscape] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [danmaku, setDanmaku] = useState<DanmakuPrefs>(() => readDanmakuPrefs());
@@ -202,6 +217,44 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
 
   const playerRef = useRef<Player | null>(null);
   const hideTimer = useRef<number | null>(null);
+  const fullLandscapeRef = useRef(false);
+
+  /**
+   * 全屏时不是把播放器拉满整个窗口，而是按视频真实比例算出“能放下的最大矩形”，
+   * 居中显示。手机 20:9/19.5:9、刘海挖孔、系统栏都能留出黑边，画面不会被裁切。
+   */
+  const fitFullscreenPlayer = useCallback((): void => {
+    const page = pageRef.current;
+    if (page === null) return;
+    if (!fullLandscapeRef.current) {
+      page.style.removeProperty('--mp-fs-w');
+      page.style.removeProperty('--mp-fs-h');
+      page.style.removeProperty('--mp-fs-left');
+      page.style.removeProperty('--mp-fs-top');
+      return;
+    }
+    const viewport = window.visualViewport;
+    const vw = Math.max(1, viewport?.width ?? window.innerWidth);
+    const vh = Math.max(1, viewport?.height ?? window.innerHeight);
+    const video = page.querySelector<HTMLVideoElement>('video');
+    const ratio = video !== null && video.videoWidth > 0 && video.videoHeight > 0
+      ? video.videoWidth / video.videoHeight
+      : 16 / 9;
+    let width = vw;
+    let height = width / ratio;
+    if (height > vh) {
+      height = vh;
+      width = height * ratio;
+    }
+    const left = Math.max(0, (vw - width) / 2);
+    const top = Math.max(0, (vh - height) / 2);
+    page.style.setProperty('--mp-fs-w', `${Math.round(width)}px`);
+    page.style.setProperty('--mp-fs-h', `${Math.round(height)}px`);
+    page.style.setProperty('--mp-fs-left', `${Math.round(left)}px`);
+    page.style.setProperty('--mp-fs-top', `${Math.round(top)}px`);
+  }, []);
+  /** 一次手势只允许切一集：提交后锁住，直到路由真正换到下一集 */
+  const swipeLocked = useRef(false);
   const clearedRef = useRef(false);
   const detailRef = useRef<SeriesDetail | null>(null);
   detailRef.current = detail;
@@ -522,6 +575,33 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       if (p !== null && p.currentTime > 0) report(p.currentTime, p.duration || 0, true);
     };
   }, [report]);
+
+  // 播放中每 15 秒落一次盘；退到桌面/切后台时立即暂停并 keepalive 上报，
+  // 这样详情页的“上次看到第几集第几秒”和已看标记不会只在手动暂停时才更新。
+  useEffect(() => {
+    const save = (keepalive: boolean): void => {
+      const p = playerRef.current;
+      if (p === null || p.currentTime <= 0) return;
+      // 切集等待时播放器里还挂着上一集的源，别把上一集进度写到新集头上
+      const src = (p.media as HTMLVideoElement | null)?.currentSrc ?? '';
+      if (episodeOfUrl(src) !== route.episodeId) return;
+      report(p.currentTime, p.duration || 0, keepalive);
+    };
+    const timer = window.setInterval(() => save(false), 15_000);
+    const onVisibility = (): void => {
+      if (document.visibilityState !== 'hidden') return;
+      const p = playerRef.current;
+      save(true);
+      p?.pause();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onVisibility);
+    };
+  }, [report, route.episodeId]);
 
   const neighbor = useCallback(
     (delta: number): void => {
@@ -1016,6 +1096,81 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     wakeChrome();
   };
 
+  /** 点击画面只唤出控件，不再播放/暂停；暂停统一走底部独立按钮 */
+  const toggleTransport = (): void => {
+    const player = playerRef.current;
+    const media = player?.media as HTMLVideoElement | null;
+    if (player === null || media === null) return;
+    if (media.paused) void player.play().catch(() => undefined);
+    else player.pause();
+    wakeChrome();
+  };
+
+  /**
+   * 全屏横屏：优先走原生桥（锁 SCREEN_ORIENTATION_SENSOR_LANDSCAPE + 沉浸式），
+   * 比 HTML fullscreen 稳，旋转后不会又回到 16:9 小窗；浏览器里退回标准 Fullscreen API。
+   */
+  const toggleFullscreenLandscape = (): void => {
+    const next = !fullLandscapeRef.current;
+    fullLandscapeRef.current = next;
+    setFullLandscape(next);
+    document.documentElement.classList.toggle('is-fullscreen-landscape', next);
+    fitFullscreenPlayer();
+    const native = window.HorunAndroid;
+    if (native?.setFullscreenLandscape !== undefined) {
+      native.setFullscreenLandscape(next);
+    } else if (next) {
+      void document.documentElement.requestFullscreen?.().catch(() => undefined);
+      const orientation = screen.orientation as ScreenOrientation & {
+        lock?: (mode: 'landscape') => Promise<void>;
+      };
+      void orientation.lock?.('landscape').catch(() => undefined);
+    } else {
+      if (document.fullscreenElement !== null) void document.exitFullscreen?.().catch(() => undefined);
+      const orientation = screen.orientation as ScreenOrientation & { unlock?: () => void };
+      orientation.unlock?.();
+    }
+    wakeChrome();
+  };
+
+  // 离开播放页时务必解除横屏锁，否则回首页/详情页会卡在横屏
+  useEffect(() => {
+    return () => {
+      if (!fullLandscapeRef.current) return;
+      fullLandscapeRef.current = false;
+      document.documentElement.classList.remove('is-fullscreen-landscape');
+      window.HorunAndroid?.setFullscreenLandscape?.(false);
+    };
+  }, []);
+
+  // 全屏/旋转/视频元数据变化时重算播放器矩形；旋转动画期间多算两次，避免拿到旧视口。
+  useEffect(() => {
+    if (!mobile) return;
+    const page = pageRef.current;
+    if (!fullLandscape) {
+      fitFullscreenPlayer();
+      return;
+    }
+    fitFullscreenPlayer();
+    const timers = [
+      window.setTimeout(fitFullscreenPlayer, 120),
+      window.setTimeout(fitFullscreenPlayer, 420),
+    ];
+    const onChange = (): void => fitFullscreenPlayer();
+    const video = page?.querySelector<HTMLVideoElement>('video') ?? null;
+    window.addEventListener('resize', onChange);
+    window.addEventListener('orientationchange', onChange);
+    window.visualViewport?.addEventListener('resize', onChange);
+    video?.addEventListener('loadedmetadata', onChange);
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+      window.removeEventListener('resize', onChange);
+      window.removeEventListener('orientationchange', onChange);
+      window.visualViewport?.removeEventListener('resize', onChange);
+      video?.removeEventListener('loadedmetadata', onChange);
+    };
+  }, [fullLandscape, mobile, fitFullscreenPlayer]);
+
   /** 控件区上的触摸不当成切集手势（选集条、右侧操作、顶栏、弹层） */
   const isGestureIgnored = (target: EventTarget | null): boolean =>
     target instanceof Element &&
@@ -1031,7 +1186,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   }, []);
 
   const onTouchStart = (event: ReactTouchEvent<HTMLDivElement>): void => {
-    if (!mobile || event.touches.length !== 1 || isGestureIgnored(event.target)) {
+    if (!mobile || switching || swipeLocked.current || event.touches.length !== 1 || isGestureIgnored(event.target)) {
       swipeStart.current = null;
       return;
     }
@@ -1098,6 +1253,8 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     }
     wakeChrome();
     navigator.vibrate?.(8);
+    // 一次手势只切一集：锁到手势结束/路由更新，避免连滑两下直接跳两集
+    swipeLocked.current = true;
     // 先把当前画面顺着手指滑出屏幕，再换集；新集继续用已有的入场动画衔接
     pageRef.current?.setAttribute('data-dragging', 'commit');
     pageRef.current?.style.setProperty('--mp-drag-y', `${dir * height}px`);
@@ -1111,6 +1268,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   useEffect(() => {
     resetDrag();
     swipeStart.current = null;
+    swipeLocked.current = false;
   }, [route.episodeId, resetDrag]);
 
   const onTime = useCallback(
@@ -1294,6 +1452,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
           url={readyUrl}
           startAt={startAt}
           rate={rate}
+          clickToToggle={false}
           onPrev={() => neighbor(-1)}
           onNext={() => neighbor(1)}
           onReady={(p) => {
@@ -1403,7 +1562,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
         <button className="play__rail-btn" onClick={openComments} title="评论">
           <span className="play__rail-icon">💬</span>
           <em>评论</em>
-          <b className="play__rail-num">{fmtCount(episode?.commentCount ?? 0)}</b>
+          <b className="play__rail-num">{fmtCount(comments?.total ?? episode?.commentCount ?? 0)}</b>
         </button>
         <button
           className="play__rail-btn"
@@ -1463,6 +1622,16 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
             <span className="mp-epname">第{currentIndex >= 0 ? currentIndex + 1 : route.no}集</span>
             <button
               type="button"
+              className="mp-fullscreen-btn"
+              data-on={fullLandscape}
+              aria-label={fullLandscape ? '退出全屏横屏' : '全屏横屏'}
+              onClick={toggleFullscreenLandscape}
+            >
+              <MpIcon kind="expand" size={21} />
+              <span>{fullLandscape ? '退出' : '全屏'}</span>
+            </button>
+            <button
+              type="button"
               className="mp-more-btn"
               aria-label="更多"
               onClick={() => {
@@ -1499,7 +1668,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               <span className="mp-rail-icon">
                 <MpIcon kind="comment" size={30} />
               </span>
-              <b>{fmtCount(episode?.commentCount ?? 0) || '评论'}</b>
+              <b>{fmtCount(comments?.total ?? episode?.commentCount ?? 0) || '评论'}</b>
             </button>
             <button type="button" className="mp-rail-btn" onClick={() => void toggleLike()} aria-label={liked ? '取消点赞' : '点赞'}>
               <span className="mp-rail-icon mp-rail-heart" data-on={liked}>
@@ -1557,6 +1726,16 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
               <i style={{ left: `${Math.round(progressRatio * 100)}%` }} />
             </div>
             <div className="mp-controls">
+              <button
+                type="button"
+                className="mp-ctl mp-ctl--transport"
+                onClick={toggleTransport}
+                aria-label={playing ? '暂停' : '播放'}
+                aria-pressed={!playing}
+              >
+                <MpIcon kind={playing ? 'pause' : 'play'} size={19} />
+                <span>{playing ? '暂停' : '播放'}</span>
+              </button>
               <button
                 type="button"
                 className="mp-ctl mp-ctl--episodes"
@@ -1680,7 +1859,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
           <aside className="play__comments" role="dialog" aria-label="评论" onClick={(e) => e.stopPropagation()}>
             <header className="play__comments-head">
               <strong>评论</strong>
-              <span>{fmtCount(episode?.commentCount ?? 0) || '0'} 条</span>
+              <span>{fmtCount(comments?.total ?? episode?.commentCount ?? 0) || '0'} 条</span>
               <button className="btn btn--ghost btn--icon" onClick={() => setCommentsOpen(false)} aria-label="关闭">
                 ✕
               </button>

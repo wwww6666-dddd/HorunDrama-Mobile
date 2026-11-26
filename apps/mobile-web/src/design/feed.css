@@ -23,6 +23,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
   scrollbar-width: none;
 }
 
@@ -34,6 +35,8 @@
   position: relative;
   height: 100%;
   scroll-snap-align: start;
+  /* 关键：一次手势最多只吸附到下一张，WebView 的惯性滚动不会再连过好几部 */
+  scroll-snap-stop: always;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -20,6 +20,41 @@ export const MOBILE_GITHUB_URL = `https://github.com/${MOBILE_GITHUB_REPO}`;
 export const MOBILE_FEEDBACK_URL = `${MOBILE_GITHUB_URL}/issues/new`;
 export const MOBILE_RELEASES_URL = `${MOBILE_GITHUB_URL}/releases`;
 export const MOBILE_UPDATE_API_URL = `https://api.github.com/repos/${MOBILE_GITHUB_REPO}/releases/latest`;
+
+/**
+ * GitHub 在国内经常直连超时，检查更新和下载都走多源。
+ * 2026-11 实测：gh-proxy.com 超时，gh-proxy.org（官方新域名）与 api.gitproxy.dev 可用；
+ * 两者都透传 Range，能跑分段下载。旧的 .com/.net 保留作为兜底。
+ */
+const MOBILE_MIRROR_PREFIXES = ['https://gh-proxy.org/', 'https://gh-proxy.com/'];
+/**
+ * 下载线路：只列实测能连的，排在前面的先试。
+ * api.gitproxy.dev 的路径格式是 /github.com/owner/repo/...（不带 https://）。
+ */
+const MOBILE_DOWNLOAD_MIRRORS = ['https://gh-proxy.org/', 'https://api.gitproxy.dev/', 'https://ghproxy.net/', 'https://gh-proxy.com/'];
+
+export function mobileUpdateApiSources(): string[] {
+  return [
+    `${MOBILE_MIRROR_PREFIXES[0]}${MOBILE_UPDATE_API_URL}`,
+    MOBILE_UPDATE_API_URL,
+    ...MOBILE_MIRROR_PREFIXES.slice(1).map((prefix) => `${prefix}${MOBILE_UPDATE_API_URL}`),
+  ];
+}
+
+/** 给原生 UpdateManager 的多源下载串：镜像优先、GitHub 原站兜底，用 | 分隔 */
+export function mobileUpdateAssetSources(assetUrl: string): string {
+  if (assetUrl === '') return '';
+  const candidates: string[] = [];
+  for (const prefix of MOBILE_DOWNLOAD_MIRRORS) {
+    if (prefix.includes('api.gitproxy.dev')) {
+      candidates.push(`${prefix}${assetUrl.replace(/^https:\/\//, '')}`);
+    } else {
+      candidates.push(`${prefix}${assetUrl}`);
+    }
+  }
+  candidates.push(assetUrl);
+  return candidates.join('|');
+}
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 /** 反馈（新建 issue） */
 export const FEEDBACK_URL = `${GITHUB_URL}/issues/new`;
@@ -57,6 +92,8 @@ export interface UpdateInfo {
   publishedAt: string;
   notes: string;
   assets: UpdateAsset[];
+  /** 所有在线检查线路都失败时，返回的是 localStorage 上次成功结果 */
+  fromCache?: boolean;
 }
 
 /**
@@ -112,13 +149,29 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 }
 
 /**
- * 手机端单独走 MOBILE_UPDATE_API_URL；桌面端的 checkUpdate 不动。
+ * 手机端检查更新：GitHub 原站 + 镜像并发，谁先返回用谁。
+ * 这样 GitHub 超时不会把整个检查卡死，也不会误报“已是最新”。
  */
 export async function checkMobileUpdate(): Promise<UpdateInfo> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 8000);
+  const sources = mobileUpdateApiSources();
+  const attempts = sources.map((source, index) => fetchMobileUpdateSource(source, index === 0 ? 7000 : 9000));
   try {
-    const res = await fetch(`${MOBILE_UPDATE_API_URL}?t=${Date.now()}`, {
+    return await Promise.any(attempts);
+  } catch {
+    const cached = readCachedMobileUpdate();
+    if (cached !== null) {
+      // 全部线路都断时，至少列出上次成功拿到的版本；界面会注明是缓存结果。
+      return { ...cached, fromCache: true };
+    }
+    throw new Error('GitHub 和更新镜像都连不上，请换网络后再试');
+  }
+}
+
+async function fetchMobileUpdateSource(source: string, timeoutMs: number): Promise<UpdateInfo> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${source}?t=${Date.now()}`, {
       signal: controller.signal,
       cache: 'no-store',
       headers: { accept: 'application/vnd.github+json', 'cache-control': 'no-cache' },
@@ -141,7 +194,7 @@ export async function checkMobileUpdate(): Promise<UpdateInfo> {
         content_type?: string;
       }>;
     };
-    return {
+    const info: UpdateInfo = {
       latest: (json.tag_name ?? '').replace(/^v/i, ''),
       url: json.html_url ?? MOBILE_RELEASES_URL,
       name: json.name ?? '',
@@ -157,8 +210,27 @@ export async function checkMobileUpdate(): Promise<UpdateInfo> {
           contentType: a.content_type ?? '',
         })),
     };
+    if (info.latest === '') throw new Error('更新接口没有返回版本号');
+    try {
+      localStorage.setItem('horun-update-cache', JSON.stringify(info));
+    } catch {
+      /* 隐私模式忽略 */
+    }
+    return info;
   } finally {
     window.clearTimeout(timer);
+  }
+}
+
+function readCachedMobileUpdate(): UpdateInfo | null {
+  try {
+    const raw = localStorage.getItem('horun-update-cache');
+    if (raw === null) return null;
+    const parsed = JSON.parse(raw) as UpdateInfo;
+    if (typeof parsed.latest !== 'string' || !Array.isArray(parsed.assets)) return null;
+    return parsed;
+  } catch {
+    return null;
   }
 }
 

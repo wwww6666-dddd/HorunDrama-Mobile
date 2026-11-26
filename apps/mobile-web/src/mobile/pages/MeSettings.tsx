@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import { api, type Settings as SettingsData } from '../../api.ts';
-import { APP_VERSION, checkMobileUpdate, compareVersion, openExternalUrl, type UpdateInfo } from '../../app-info.ts';
+import {
+  APP_VERSION,
+  checkMobileUpdate,
+  compareVersion,
+  mobileUpdateAssetSources,
+  openExternalUrl,
+  type UpdateInfo,
+} from '../../app-info.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
 import { useApp, type Accent, type ThemeMode } from '../../store.ts';
 import { useNav } from '../nav.tsx';
@@ -33,6 +40,17 @@ const FONT_SCALES: Array<{ value: number; label: string }> = [
   { value: 112, label: '大' },
   { value: 125, label: '特大' },
 ];
+
+interface UpdateProgress {
+  state: string;
+  received: number;
+  total: number;
+  percent: number;
+  message: string;
+  path: string;
+  sourceIndex: number;
+  sourceCount: number;
+}
 
 function mb(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -105,6 +123,7 @@ export function MeSettings(): JSX.Element {
 
   const settings = useAsync((signal) => api.settings(signal), []);
   const cache = useAsync((signal) => api.cacheStats(signal), []);
+  const downloads = useAsync((signal) => api.downloads(signal), []);
   const [draft, setDraft] = useState<SettingsData | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -113,11 +132,30 @@ export function MeSettings(): JSX.Element {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [updateNote, setUpdateNote] = useState('');
   const [checking, setChecking] = useState(false);
+  const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [autoUpdate, setAutoUpdate] = useState(() => localStorage.getItem('horun-auto-update') !== '0');
 
   useEffect(() => {
     void refreshAccount();
   }, [refreshAccount]);
+
+  // 原生下载器不推事件，设置页打开时轮询进度；进入其他页面就停。
+  useEffect(() => {
+    if (window.HorunAndroid?.getUpdateProgress === undefined) return;
+    const read = (): void => {
+      try {
+        const raw = window.HorunAndroid?.getUpdateProgress?.() ?? '';
+        if (raw === '') return;
+        const next = JSON.parse(raw) as UpdateProgress;
+        setProgress(next);
+      } catch {
+        /* 原生还没准备好 */
+      }
+    };
+    read();
+    const timer = window.setInterval(read, 800);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (settings.data !== null) setDraft(settings.data);
@@ -163,9 +201,17 @@ export function MeSettings(): JSX.Element {
       const info = await checkMobileUpdate();
       if (compareVersion(info.latest, APP_VERSION) > 0) {
         setUpdate(info);
-        setUpdateNote(`发现新版本 v${info.latest}（当前 ${APP_VERSION}）`);
+        setUpdateNote(
+          info.fromCache === true
+            ? `连接 GitHub 超时，显示上次检查结果 v${info.latest}（可直接下载）`
+            : `发现新版本 v${info.latest}（当前 ${APP_VERSION}）`,
+        );
       } else {
-        setUpdateNote(`已经是最新版本 v${APP_VERSION}`);
+        setUpdateNote(
+          info.fromCache === true
+            ? `连接 GitHub 超时，上次检查为 v${info.latest}（当前 ${APP_VERSION}）`
+            : `已经是最新版本 v${APP_VERSION}`,
+        );
       }
     } catch (err) {
       setUpdateNote(`检查更新失败：${(err as Error).message}`);
@@ -182,10 +228,11 @@ export function MeSettings(): JSX.Element {
     }
     const native = window.HorunAndroid?.downloadUpdate;
     if (typeof native === 'function') {
-      native(asset.url, asset.name || 'HorunDrama-update.apk', asset.digest, 4);
-      setUpdateNote('已在后台多线程下载，完成后会弹出系统安装界面');
+      native(mobileUpdateAssetSources(asset.url), asset.name || 'HorunDrama-update.apk', asset.digest, 4, asset.size);
+      setUpdateNote('GitHub 超时会自动切镜像，已在后台多线程下载');
     } else {
-      void openExternalUrl(asset.url);
+      // 浏览器预览没有原生下载器：给镜像地址，避免 GitHub 打不开
+      void openExternalUrl(mobileUpdateAssetSources(asset.url).split('|')[0] ?? asset.url);
     }
   };
 
@@ -193,6 +240,9 @@ export function MeSettings(): JSX.Element {
   const speed = data?.defaultSpeed ?? 1;
   const quality = data?.defaultQuality ?? 'auto';
   const loggedIn = account !== null && account.loggedIn;
+  const updateState = progress?.state ?? window.HorunAndroid?.getUpdateState?.() ?? 'idle';
+  const updateBusy = updateState === 'downloading' || updateState === 'verifying';
+  const updatePercent = Math.round(Math.max(0, Math.min(1, progress?.percent ?? 0)) * 100);
 
   return (
     <div className="ms">
@@ -330,6 +380,37 @@ export function MeSettings(): JSX.Element {
             </label>
           </div>
         </div>
+        <div className="ms-row ms-row--stack">
+          <span className="ms-row__text">
+            <b>下载并发</b>
+            <span>同时下载几集，网络差时调到 1 更稳</span>
+          </span>
+          <Seg<number>
+            value={data?.downloadConcurrency ?? 2}
+            options={[1, 2, 3, 4].map((value) => ({ value, label: `${value} 集` }))}
+            onPick={(value) => patch({ downloadConcurrency: value })}
+          />
+        </div>
+        <div className="ms-row ms-row--stack">
+          <span className="ms-row__text">
+            <b>画质增强</b>
+            <span>下载转码时降噪锐化，只在支持硬解的机型生效</span>
+          </span>
+          <Seg<SettingsData['enhanceVideo']>
+            value={data?.enhanceVideo ?? 'off'}
+            options={[
+              { value: 'off', label: '关闭' },
+              { value: 'standard', label: '标准' },
+              { value: 'strong', label: '强' },
+            ]}
+            onPick={(value) => patch({ enhanceVideo: value })}
+          />
+        </div>
+        <SRow
+          label="自动同步账号"
+          hint="打开追剧页时同步收藏 / 历史 / 追更"
+          right={<Switch on={data?.autoSyncAccount !== false} onChange={(v) => patch({ autoSyncAccount: v })} />}
+        />
         <SRow
           label="新集提醒"
           hint="在追剧页给有新集的剧打标"
@@ -358,6 +439,14 @@ export function MeSettings(): JSX.Element {
         <SRow
           label="封面 / 图片缓存"
           hint={cache.data !== null ? `${cache.data.images.count} 张 · ${mb(cache.data.images.bytes)} / ${mb(cache.data.images.limit)}` : '读取中'}
+        />
+        <SRow
+          label="下载目录"
+          hint={downloads.data?.dir !== undefined && downloads.data.dir !== '' ? downloads.data.dir : '读取中'}
+        />
+        <SRow
+          label="媒体缓存目录"
+          hint={cache.data?.media.dir !== undefined && cache.data.media.dir !== '' ? cache.data.media.dir : '读取中'}
         />
         <SRow
           label="清理媒体缓存"
@@ -393,11 +482,11 @@ export function MeSettings(): JSX.Element {
         <SRow
           label="当前版本"
           hint={`手机端 v${APP_VERSION}`}
-          right={<span className="ms-pill">{window.HorunAndroid?.getUpdateState?.() === 'downloading' ? '下载中' : '正式版'}</span>}
+          right={<span className="ms-pill">{updateBusy ? `下载 ${updatePercent}%` : updateState === 'downloaded' ? '待安装' : '正式版'}</span>}
         />
         <SRow
           label="自动更新"
-          hint="每天检查一次，后台四线程下载，完成后提示安装"
+          hint="每天检查一次，后台下载，完成后提示安装"
           right={
             <Switch
               on={autoUpdate}
@@ -409,11 +498,38 @@ export function MeSettings(): JSX.Element {
             />
           }
         />
-        <SRow label="检查更新" hint="从 GitHub Releases 获取最新 APK" onClick={() => void checkForUpdate()} right={<span className="ms-pill">{checking ? '检查中' : '检查'}</span>} />
+        {updateBusy && (
+          <div className="ms-update">
+            <div className="ms-update__line">
+              <b>{updateState === 'verifying' ? '正在校验更新包' : '正在后台下载更新'}</b>
+              <span>{updatePercent}%</span>
+            </div>
+            <div className="ms-update__track">
+              <span style={{ width: `${updatePercent}%` }} />
+            </div>
+            <p>
+              {progress?.message !== undefined && progress.message !== ''
+                ? progress.message
+                : `线路 ${(progress?.sourceIndex ?? 0) + 1}/${progress?.sourceCount ?? 0} · ${mb(progress?.received ?? 0)} / ${mb(progress?.total ?? 0)}`}
+            </p>
+          </div>
+        )}
+        {updateState === 'downloaded' && (
+          <SRow
+            label="安装已下载更新"
+            hint={progress?.message !== undefined && progress.message !== '' ? progress.message : '已通过 SHA-256 与签名校验'}
+            onClick={() => window.HorunAndroid?.installUpdate?.()}
+            right={<span className="ms-pill">安装</span>}
+          />
+        )}
+        {updateState === 'failed' && progress?.message !== undefined && progress.message !== '' && (
+          <p className="ms-inline-note">更新失败：{progress.message}</p>
+        )}
+        <SRow label="检查更新" hint="GitHub + 镜像并发检查，超时用上次缓存" onClick={() => void checkForUpdate()} right={<span className="ms-pill">{checking ? '检查中' : '检查'}</span>} />
         {update !== null && (
           <SRow
             label={`下载 v${update.latest}`}
-            hint="四线程分段下载，断点续传，完成后自动唤起安装"
+            hint="镜像优先、GitHub 兜底；分段失败自动退单连接，完成后校验签名"
             onClick={downloadUpdate}
             right={<span className="ms-pill">下载</span>}
           />

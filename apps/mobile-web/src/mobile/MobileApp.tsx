@@ -15,9 +15,41 @@ import { MeSettings } from './pages/MeSettings.tsx';
 import { Category, Downloads, NewReleases } from './pages/Misc.tsx';
 import { Rank } from './pages/Rank.tsx';
 import { useApp } from '../store.ts';
-import { APP_VERSION, checkMobileUpdate, compareVersion } from '../app-info.ts';
+import { APP_VERSION, checkMobileUpdate, compareVersion, mobileUpdateAssetSources } from '../app-info.ts';
 
 const TAB_ROUTES: MRoute[] = TABS.map((t) => t.route);
+const LAST_HASH_KEY = 'horun-last-hash';
+
+/**
+ * 冷启动/回前台恢复上次页面。
+ * 原生会在进程重建时把 lastHash 直接带给 WebView；但 WebView 自己重载、
+ * 或用户在桌面点图标导致 Activity 重走 onCreate 时，也给网页侧兜一层 localStorage。
+ */
+function resolveInitialHash(): string {
+  const current = location.hash === '' ? '#/' : location.hash;
+  try {
+    const saved = localStorage.getItem(LAST_HASH_KEY);
+    if (saved !== null && saved.startsWith('#/') && saved !== '#/' && (current === '#/' || current === '#')) {
+      history.replaceState({ m: true, restored: true }, '', saved);
+      return saved;
+    }
+  } catch {
+    /* localStorage 被禁用时按当前 hash 走 */
+  }
+  return current;
+}
+
+const INITIAL_HASH = resolveInitialHash();
+
+function parseDetailHash(hash: string): string | null {
+  const match = /^#\/series\/(.+)$/.exec(hash);
+  if (match === null || match[1] === undefined) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 const PAGES: Record<MRoute, () => JSX.Element> = {
   home: Home,
@@ -75,9 +107,9 @@ function TabBar({ route, onGo }: { route: MRoute; onGo: (next: MRoute) => void }
 
 export function MobileApp(): JSX.Element {
   const theme = useApp((s) => s.theme);
-  const [route, setRoute] = useState<MRoute>(() => parseRoute(location.hash));
-  const [playRoute, setPlayRoute] = useState<PlayRoute | null>(() => parsePlay(location.hash));
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [route, setRoute] = useState<MRoute>(() => parseRoute(INITIAL_HASH));
+  const [playRoute, setPlayRoute] = useState<PlayRoute | null>(() => parsePlay(INITIAL_HASH));
+  const [detailId, setDetailId] = useState<string | null>(() => parseDetailHash(INITIAL_HASH));
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   /** 视频相关路由：推荐流和播放页允许横屏，其他页面保持竖屏 */
@@ -113,7 +145,13 @@ export function MobileApp(): JSX.Element {
           const asset = info.assets.find((item) => item.name.toLowerCase().endsWith('.apk'));
           if (asset === undefined) return;
           localStorage.setItem('horun-update-tried', info.latest);
-          native.downloadUpdate?.(asset.url, asset.name || `HorunDrama-${info.latest}.apk`, asset.digest, 4);
+          native.downloadUpdate?.(
+            mobileUpdateAssetSources(asset.url),
+            asset.name || `HorunDrama-${info.latest}.apk`,
+            asset.digest,
+            4,
+            asset.size,
+          );
           native.toast?.(`发现新版本 v${info.latest}，正在后台下载更新`);
         })
         .catch(() => undefined);
@@ -130,6 +168,19 @@ export function MobileApp(): JSX.Element {
       window.removeEventListener('hashchange', sync);
     };
   }, [sync]);
+
+  // 每进一个页面就记一次：原生 SharedPreferences + 网页 localStorage 双份，
+  // 回桌面再打开（Activity 不重建）和进程被杀（Activity 重建）都能回原页。
+  useEffect(() => {
+    const hash = location.hash === '' ? '#/' : location.hash;
+    if (!hash.startsWith('#/')) return;
+    try {
+      localStorage.setItem(LAST_HASH_KEY, hash);
+    } catch {
+      /* 忽略隐私模式写入失败 */
+    }
+    window.HorunAndroid?.setLastHash?.(`/${hash}`);
+  }, [route, playRoute, detailId]);
 
   // 系统栏跟着页面和主题走：推荐/播放/深色页是黑底白字，浅色页是白底黑字
   useEffect(() => {

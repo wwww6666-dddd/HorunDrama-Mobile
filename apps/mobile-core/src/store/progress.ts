@@ -2,8 +2,9 @@
  * 本地进度与追剧（SQLite，node:sqlite 内置，不引第三方依赖）。
  *
  * 设计取舍：
- *  - progress 以 series 为主键：同一部剧只保留"看到哪一集、第几秒"，剧场只关心这个；
- *  - 不存每集历史：几百集的剧会把库撑大，而界面上几乎只用最新一条；
+ *  - progress 以 series 为主键：同一部剧只保留"最后看到哪一集、第几秒"，剧场只关心这个；
+ *  - episode_watch 另存每集看到的位置/是否看完：详情页要标“已看/上次看到”，
+ *    只按集号存一行，几百集也只占很小空间；
  *  - favorite 独立表，后面接账号同步时加 synced 标记即可。
  */
 import fs from 'node:fs';
@@ -31,6 +32,18 @@ db.exec(`
     updated_at    INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_progress_updated ON progress(updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS episode_watch (
+    series_id     TEXT NOT NULL,
+    episode_id    TEXT NOT NULL,
+    episode_no    INTEGER NOT NULL,
+    position_sec  REAL NOT NULL DEFAULT 0,
+    duration_sec  REAL NOT NULL DEFAULT 0,
+    completed     INTEGER NOT NULL DEFAULT 0,
+    updated_at    INTEGER NOT NULL,
+    PRIMARY KEY (series_id, episode_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_episode_watch_series ON episode_watch(series_id, episode_no);
 
   CREATE TABLE IF NOT EXISTS favorite (
     series_id     TEXT PRIMARY KEY,
@@ -98,6 +111,16 @@ export interface FavoriteRow {
   updatedAt: number;
 }
 
+export interface EpisodeWatchRow {
+  seriesId: string;
+  episodeId: string;
+  episodeNo: number;
+  positionSec: number;
+  durationSec: number;
+  completed: boolean;
+  updatedAt: number;
+}
+
 interface RawProgress {
   series_id: string;
   series_title: string;
@@ -114,6 +137,16 @@ interface RawFavorite {
   series_title: string;
   cover: string;
   episode_count: number;
+  updated_at: number;
+}
+
+interface RawEpisodeWatch {
+  series_id: string;
+  episode_id: string;
+  episode_no: number;
+  position_sec: number;
+  duration_sec: number;
+  completed: number;
   updated_at: number;
 }
 
@@ -136,6 +169,16 @@ const toFavorite = (r: RawFavorite): FavoriteRow => ({
   updatedAt: r.updated_at,
 });
 
+const toEpisodeWatch = (r: RawEpisodeWatch): EpisodeWatchRow => ({
+  seriesId: r.series_id,
+  episodeId: r.episode_id,
+  episodeNo: r.episode_no,
+  positionSec: r.position_sec,
+  durationSec: r.duration_sec,
+  completed: r.completed === 1,
+  updatedAt: r.updated_at,
+});
+
 export function saveProgress(input: {
   seriesId: string;
   seriesTitle: string;
@@ -145,8 +188,10 @@ export function saveProgress(input: {
   positionSec: number;
   durationSec: number;
 }): void {
-  // 结尾 5 秒内视为看完：position 归零，下次从这一集开头播
+  // 结尾 5 秒内视为看完：主进度归零，下次从这一集开头播；分集记录标 completed。
   const nearEnd = input.durationSec > 30 && input.positionSec > input.durationSec - 5;
+  const completed = nearEnd || (input.durationSec > 30 && input.positionSec >= input.durationSec * 0.92);
+  const now = Date.now();
   db.prepare(
     `INSERT INTO progress (series_id, series_title, cover, episode_id, episode_no, position_sec, duration_sec, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -166,8 +211,34 @@ export function saveProgress(input: {
     input.episodeNo,
     nearEnd ? 0 : Math.max(0, input.positionSec),
     input.durationSec,
-    Date.now(),
+    now,
   );
+  db.prepare(
+    `INSERT INTO episode_watch (series_id, episode_id, episode_no, position_sec, duration_sec, completed, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(series_id, episode_id) DO UPDATE SET
+       episode_no = excluded.episode_no,
+       position_sec = CASE WHEN excluded.completed = 1 THEN 0 ELSE excluded.position_sec END,
+       duration_sec = excluded.duration_sec,
+       completed = MAX(episode_watch.completed, excluded.completed),
+       updated_at = excluded.updated_at`,
+  ).run(
+    input.seriesId,
+    input.episodeId,
+    input.episodeNo,
+    completed ? 0 : Math.max(0, input.positionSec),
+    input.durationSec,
+    completed ? 1 : 0,
+    now,
+  );
+}
+
+/** 详情页用：这部剧每一集看到哪里、哪些已经看完。 */
+export function listEpisodeWatch(seriesId: string, limit = 500): EpisodeWatchRow[] {
+  const rows = db
+    .prepare('SELECT * FROM episode_watch WHERE series_id = ? ORDER BY episode_no ASC LIMIT ?')
+    .all(seriesId, limit) as unknown as RawEpisodeWatch[];
+  return rows.map(toEpisodeWatch);
 }
 
 export function getProgress(seriesId: string): ProgressRow | null {
@@ -183,15 +254,17 @@ export function listContinue(limit = 12): ProgressRow[] {
 export function clearProgress(seriesId?: string): number {
   if (seriesId === undefined || seriesId === '') {
     const res = db.prepare('DELETE FROM progress').run();
+    db.prepare('DELETE FROM episode_watch').run();
     return Number(res.changes);
   }
   const res = db.prepare('DELETE FROM progress WHERE series_id = ?').run(seriesId);
+  db.prepare('DELETE FROM episode_watch WHERE series_id = ?').run(seriesId);
   return Number(res.changes);
 }
 
 /** 退出登录时清掉所有账号相关本地数据（追更/收藏/点赞/预约/进度）。 */
 export function clearAccountData(): void {
-  db.exec('DELETE FROM follow; DELETE FROM favorite; DELETE FROM liked; DELETE FROM reservation; DELETE FROM progress;');
+  db.exec('DELETE FROM follow; DELETE FROM favorite; DELETE FROM liked; DELETE FROM reservation; DELETE FROM progress; DELETE FROM episode_watch;');
   log.info('已清除账号相关本地数据');
 }
 

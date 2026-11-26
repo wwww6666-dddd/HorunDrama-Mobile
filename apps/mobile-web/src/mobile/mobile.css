@@ -1021,6 +1021,26 @@ html.m-mode * {
   min-width: 0;
 }
 
+.m-lrow__reserve {
+  flex: none;
+  min-width: 58px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--m-accent) 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-accent) 10%, transparent);
+  color: var(--m-accent);
+  font-family: var(--m-font);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.m-lrow__reserve[data-on='true'] {
+  border-color: var(--m-line-soft);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--m-text-3);
+}
+
 .m-lrow > svg {
   flex: none;
   margin-left: auto;
@@ -1417,6 +1437,7 @@ html.m-mode * {
 
 .m-detail {
   padding: 2px 2px 12px;
+  overflow-x: hidden;
 }
 
 .m-detail__hero {
@@ -1509,9 +1530,34 @@ html.m-mode * {
 }
 
 .m-detail__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   margin-top: 14px;
+}
+
+/* 续播按钮独占一整行，追剧/收藏各占半行：320dp 窄屏也不会把按钮挤到屏幕外 */
+.m-detail__actions .m-btn--block {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
+.m-detail__actions .m-btn--icon {
+  width: 100%;
+  height: 44px;
+  min-width: 0;
+  flex-direction: row;
+  gap: 7px;
+  border-radius: 13px;
+  font-size: 12.5px;
+}
+
+.m-detail__resume-note {
+  margin: 9px 2px 0;
+  font-size: 11.5px;
+  line-height: 17px;
+  color: var(--m-text-3);
 }
 
 .m-detail__intro {
@@ -1545,6 +1591,7 @@ html.m-mode * {
 }
 
 .m-ep {
+  position: relative;
   height: 40px;
   border-radius: 12px;
   border: 1px solid var(--m-line-soft);
@@ -1554,6 +1601,39 @@ html.m-mode * {
   font-size: 13.5px;
   font-variant-numeric: tabular-nums;
   transition: transform 0.14s var(--m-ease), background 0.16s var(--m-ease), color 0.16s var(--m-ease);
+}
+
+/* 已看过：右上角小勾 + 弱化底色；正在看的那集改用强调色描边，和批量选择态区分 */
+.m-ep[data-watched='true'] {
+  color: var(--m-text-3);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.m-ep[data-watched='true']::after {
+  content: '✓';
+  position: absolute;
+  right: 5px;
+  top: 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--m-accent) 72%, #ffffff);
+}
+
+.m-ep[data-current='true'] {
+  border-color: color-mix(in srgb, var(--m-accent) 66%, transparent);
+  background: color-mix(in srgb, var(--m-accent) 13%, transparent);
+  color: var(--m-text);
+}
+
+.m-ep[data-current='true']::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--m-accent) 78%, transparent);
 }
 
 .m-ep:active {
@@ -1916,6 +1996,37 @@ html.m-mode * {
   flex-direction: column;
   gap: 10px;
   padding: 4px 0 8px;
+}
+
+.m-login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+
+.m-login-tabs .m-btn {
+  width: 100%;
+  height: 40px;
+}
+
+.m-login-tabs .m-btn[data-on='true'] {
+  border-color: color-mix(in srgb, var(--m-accent) 48%, transparent);
+  background: color-mix(in srgb, var(--m-accent) 14%, transparent);
+  color: var(--m-text);
+}
+
+.m-qr-login {
+  align-items: center;
+}
+
+.m-qr-img {
+  width: min(240px, 72vw);
+  height: min(240px, 72vw);
+  margin: 4px auto;
+  border-radius: 16px;
+  background: #ffffff;
+  object-fit: contain;
 }
 
 .m-form__row {
@@ -3380,6 +3491,22 @@ html.m-mode .feedv__m-top {
   align-items: flex-start;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+html.m-mode .feedv__transport {
+  pointer-events: auto;
+  flex: none;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 7px;
+  background: rgba(30, 28, 26, 0.72);
+  color: rgba(255, 255, 255, 0.94);
+  font-family: var(--m-font);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 html.m-mode .feedv__dm {
@@ -5130,10 +5257,37 @@ html.m-mode .m-app[data-route='home'] {
     font-weight: 700;
     letter-spacing: 0.2px;
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    margin-right: auto;
+    max-width: 44vw;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .play--mobile .mp-fullscreen-btn {
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background: rgba(12, 11, 10, 0.4);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--m-font);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .play--mobile .mp-fullscreen-btn[data-on='true'] {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.48);
   }
 
   /* 去掉整屏黑罩后，顶栏/右侧按钮只靠自身轻投影保证在亮画面也看得清 */
   .play--mobile .mp-back,
+  .play--mobile .mp-fullscreen-btn,
   .play--mobile .mp-more-btn,
   .play--mobile .mp-rail-btn,
   .play--mobile .mp-ctl {
@@ -5141,7 +5295,7 @@ html.m-mode .m-app[data-route='home'] {
   }
 
   .play--mobile .mp-more-btn {
-    margin-left: auto;
+    margin-left: 0;
   }
 
   .play--mobile .mp-menu {
@@ -5461,6 +5615,18 @@ html.m-mode .m-app[data-route='home'] {
 
   .play--mobile .mp-ctl--episodes svg {
     transform: rotate(-90deg);
+  }
+
+  .play--mobile .mp-ctl--transport {
+    padding: 0 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.19);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .play--mobile .mp-ctl--transport:active {
+    background: rgba(255, 255, 255, 0.3);
   }
 
   .play--mobile .mp-hd {
@@ -6757,6 +6923,50 @@ html.m-mode .m-app .mt-act[data-kind='reserve'] .mt-act__icon {
   line-height: 17px;
 }
 
+.ms-update {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--m-line-soft);
+}
+
+.ms-update__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--m-text);
+  font-size: 12.5px;
+}
+
+.ms-update__line span {
+  color: var(--m-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ms-update__track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-text) 12%, transparent);
+}
+
+.ms-update__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--m-accent);
+  transition: width 0.25s linear;
+}
+
+.ms-update p {
+  margin: 0;
+  color: var(--m-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
 /* 设置页深色 */
 :root[data-theme='dark'] .m-app[data-route='settings'],
 :root[data-theme='dark'] .m-app[data-route='settings'] .m-scroll {
@@ -7149,16 +7359,141 @@ html.m-mode.is-rotating.is-landscape .play--mobile .drama-player {
   html.m-mode.is-landscape .play--mobile .mp-bottom {
     left: 50%;
     right: auto;
-    width: min(760px, calc(100vw - 180px));
+    width: min(1080px, calc(100vw - var(--m-safe-left) - var(--m-safe-right) - 32px));
     padding-bottom: calc(10px + var(--m-safe-bottom));
     translate: -50% 0;
   }
+
+  /* 横屏/全屏横屏统一用动态视口高度，视频按真实比例 contain：
+     20:9、19.5:9、16:9 手机都不会再被 object-fit:cover 裁掉左右，也不会超出屏幕。 */
+  .play--mobile {
+    --mp-video-top: 0px;
+    --mp-video-h: 100dvh;
+  }
+
+  html.m-mode .play.play--mobile .drama-player {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+  }
+
+  html.m-mode .play--mobile video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: #000000;
+  }
+
+  /* 旧规则 html.m-mode .play .xgplayer video 的选择器权重更高，会把视频强行 cover。
+     全屏横屏必须显式压过它：按视频原始比例完整显示，宁可留黑边也不裁切、不拉伸。 */
+  html.m-mode .play.play--mobile .xgplayer video,
+  html.m-mode .play.play--mobile video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    background: #000000;
+  }
+
+  .play--mobile .mp-controls {
+    gap: 6px;
+  }
+
+  .play--mobile .mp-ctl {
+    font-size: 14px;
+    gap: 5px;
+    padding: 0 6px;
+  }
+
+  .play--mobile .mp-ctl--episodes,
+  .play--mobile .mp-ctl--transport {
+    padding: 0 9px;
+  }
+}
+
+/* 全屏横屏：窗口全黑，但播放器不是 100% 铺满，而是 JS 按视频比例算出的最大居中矩形。
+   这样 20:9/19.5:9、刘海、挖孔、手势条都不会裁掉画面，也不会把人物拉变形。 */
+html.m-mode.is-fullscreen-landscape .play--mobile {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #000000;
+}
+
+html.m-mode.is-fullscreen-landscape .play.play--mobile .drama-player {
+  top: var(--mp-fs-top, 0px) !important;
+  left: var(--mp-fs-left, 0px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: var(--mp-fs-w, 100vw) !important;
+  height: var(--mp-fs-h, 100dvh) !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+html.m-mode.is-fullscreen-landscape .play.play--mobile .xgplayer,
+html.m-mode.is-fullscreen-landscape .play.play--mobile .xgplayer video,
+html.m-mode.is-fullscreen-landscape .play.play--mobile video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #000000;
+}
+
+html.m-mode.is-fullscreen-landscape .play--mobile .mp-top {
+  top: calc(var(--mp-fs-top, 0px) + var(--m-safe-top, 0px) + 8px);
+  left: calc(var(--mp-fs-left, 0px) + var(--m-safe-left, 0px) + 14px);
+  right: calc(100vw - var(--mp-fs-left, 0px) - var(--mp-fs-w, 100vw) + var(--m-safe-right, 0px) + 14px);
+}
+
+html.m-mode.is-fullscreen-landscape .play--mobile .mp-bottom {
+  left: calc(var(--mp-fs-left, 0px) + 12px);
+  right: auto;
+  width: calc(var(--mp-fs-w, 100vw) - 24px);
+  bottom: calc(100dvh - var(--mp-fs-top, 0px) - var(--mp-fs-h, 100dvh) + var(--m-safe-bottom, 0px) + 8px);
+  padding-bottom: 0;
+  translate: none;
+}
+
+html.m-mode.is-fullscreen-landscape .play--mobile .mp-rail {
+  right: calc(100vw - var(--mp-fs-left, 0px) - var(--mp-fs-w, 100vw) + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+html.m-mode.is-fullscreen-landscape .play--mobile .danmaku-layer {
+  top: var(--mp-fs-top, 0px) !important;
+  height: var(--mp-fs-h, 100dvh) !important;
 }
 
 /* 手机横屏高度不足 700px：右栏按钮压到 42px，头像跟着降到收藏正上方 */
 @media (max-height: 700px) and (orientation: landscape) {
   html.m-mode.is-landscape .feedv__author {
     bottom: calc(70px + var(--m-safe-bottom) + 286px);
+  }
+
+  /* 628×360 这类小屏横屏：6 个控件必须挤在一行，不能出现横向滚动 */
+  .play--mobile .mp-controls {
+    gap: 2px;
+  }
+
+  .play--mobile .mp-ctl {
+    width: auto;
+    height: 42px;
+    padding: 0 3px;
+    gap: 4px;
+    font-size: 12.5px;
+  }
+
+  .play--mobile .mp-ctl--episodes,
+  .play--mobile .mp-ctl--transport {
+    padding: 0 7px;
+    font-size: 13px;
   }
 }
 

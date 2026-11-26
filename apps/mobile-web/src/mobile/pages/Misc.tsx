@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
-import { api, coverOf, type DownloadItem, type FilterRow } from '../../api.ts';
+import { api, coverOf, type DownloadItem, type FilterRow, type NewReleaseItem } from '../../api.ts';
 import { useAsync } from '../../hooks/useAsync.ts';
 import { useNav } from '../nav.tsx';
 import { Empty, Icon, Loading, Skeleton, Sheet } from '../ui.tsx';
@@ -11,7 +11,37 @@ export function NewReleases(): JSX.Element {
   const { openDetail } = useNav();
   const [date, setDate] = useState('');
   const page = useAsync((signal) => api.newReleases(date, '', signal), [date]);
+  const reservations = useAsync((signal) => api.reservations(signal), []);
+  const [reserved, setReserved] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState('');
   const data = page.data;
+
+  useEffect(() => {
+    const map: Record<string, boolean> = {};
+    for (const item of reservations.data ?? []) map[item.seriesId] = true;
+    setReserved(map);
+  }, [reservations.data]);
+
+  const toggleReserve = async (item: NewReleaseItem): Promise<void> => {
+    if (busy !== '') return;
+    setBusy(item.seriesId);
+    const next = !reserved[item.seriesId];
+    try {
+      const res = await api.setReservation({
+        seriesId: item.seriesId,
+        seriesTitle: item.title,
+        cover: item.cover,
+        episodeCount: item.episodeCount,
+        reserve: next,
+      });
+      setReserved((prev) => ({ ...prev, [item.seriesId]: res.reserved }));
+      reservations.reload();
+    } catch {
+      /* 预约失败保持原状态，用户可再点一次 */
+    } finally {
+      setBusy('');
+    }
+  };
 
   return (
     <>
@@ -30,7 +60,16 @@ export function NewReleases(): JSX.Element {
 
       <div className="m-list">
         {(data?.items ?? []).map((item) => (
-          <button type="button" className="m-lrow" key={item.seriesId} onClick={() => openDetail(item.seriesId)}>
+          <article
+            className="m-lrow"
+            key={item.seriesId}
+            role="button"
+            tabIndex={0}
+            onClick={() => openDetail(item.seriesId)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') openDetail(item.seriesId);
+            }}
+          >
             <span className="m-lrow__cover">
               <img src={item.cover !== '' ? `/api/img?url=${encodeURIComponent(item.cover)}` : `/api/poster/${item.seriesId}`} alt="" loading="lazy" />
               {item.online && <span className="m-lrow__live">上线</span>}
@@ -44,8 +83,23 @@ export function NewReleases(): JSX.Element {
               </p>
               {item.note !== '' && <p className="m-lrow__intro">{item.note}</p>}
             </div>
-            <Icon name="chevron" size={17} />
-          </button>
+            {item.online ? (
+              <Icon name="chevron" size={17} />
+            ) : (
+              <button
+                type="button"
+                className="m-lrow__reserve"
+                data-on={reserved[item.seriesId] === true}
+                disabled={busy === item.seriesId}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void toggleReserve(item);
+                }}
+              >
+                {reserved[item.seriesId] === true ? '已预约' : busy === item.seriesId ? '处理中' : '预约'}
+              </button>
+            )}
+          </article>
         ))}
       </div>
 

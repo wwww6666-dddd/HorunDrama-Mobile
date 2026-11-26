@@ -60,16 +60,22 @@ export interface HorunAndroidBridge {
   toast: (message: string) => void;
   /** 系统栏配色：剧场/我的 light，推荐/播放 dark */
   setBars?: (mode: 'light' | 'dark') => void;
-  /** 视频页允许横屏（auto）/ 其他页面锁竖屏（portrait） */
-  setOrientation?: (mode: 'auto' | 'portrait') => void;
+  /** 视频页允许横屏（auto）/ 播放页锁横屏（landscape）/ 其他页面锁竖屏（portrait） */
+  setOrientation?: (mode: 'auto' | 'landscape' | 'portrait') => void;
+  /** 播放页“全屏横屏”：进入时锁横屏 + 沉浸式，退出恢复传感器 */
+  setFullscreenLandscape?: (on: boolean) => void;
+  /** 记住最后停留的 hash，进程重建/回前台时恢复原页面 */
+  setLastHash?: (hash: string) => void;
   /** 横屏播放时进入沉浸式全屏（隐藏系统栏） */
   setImmersive?: (on: boolean) => void;
   /** 系统字号缩放：90~125（WebView textZoom） */
   setFontScale?: (percent: number) => void;
-  /** 下载更新 APK：url + 文件名 + sha256(可空) + 线程数；内部四线程 Range 分段 */
-  downloadUpdate?: (url: string, fileName: string, sha256: string, threads: number) => void;
-  /** 更新状态：idle | downloading | downloaded | failed */
+  /** 下载更新 APK：镜像多源 + 文件名 + sha256 + 线程数 + 期望字节数 */
+  downloadUpdate?: (url: string, fileName: string, sha256: string, threads: number, expectedSize: number) => void;
+  /** 更新状态：idle | downloading | verifying | downloaded | failed */
   getUpdateState?: () => string;
+  /** 更新进度 JSON：{state,received,total,percent,message,path,sourceIndex,sourceCount} */
+  getUpdateProgress?: () => string;
   /** 安装已经下载好的 APK */
   installUpdate?: () => void;
 }

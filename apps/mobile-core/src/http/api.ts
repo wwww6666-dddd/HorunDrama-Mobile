@@ -56,6 +56,7 @@ import {
   clearAccountData,
   isLiked,
   listContinue,
+  listEpisodeWatch,
   listFavorites,
   listFollows,
   listLikes,
@@ -894,6 +895,16 @@ export function registerRoutes(router: Router): void {
       return;
     }
     ok(res, getProgress(seriesId));
+  });
+
+  /** 详情选集用：每集看到哪一秒、是否已经看完。 */
+  router.get('/api/progress/episodes', ({ res, url }: Ctx) => {
+    const seriesId = url.searchParams.get('seriesId') ?? '';
+    if (!/^\d{6,25}$/.test(seriesId)) {
+      fail(res, 400, 'bad_series_id', '剧 id 不合法');
+      return;
+    }
+    ok(res, listEpisodeWatch(seriesId));
   });
 
   router.post('/api/progress/clear', async ({ req, res }: Ctx) => {

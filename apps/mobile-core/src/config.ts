@@ -7,7 +7,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '1.4.0';
+export const VERSION = '1.5.0';
 
 /**
  * 独立 APK 与电脑端共用同一套核心：
@@ -49,4 +49,5 @@ export function lanAddresses(): string[] {
   }
   return out;
 }
+
 
