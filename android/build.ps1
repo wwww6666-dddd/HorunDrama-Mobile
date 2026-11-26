@@ -24,15 +24,37 @@ $runtimeStage = Join-Path $root '.tmp\runtime-stage'
 $stage = 'D:\horun-android\.tmp\horun-mobile-build'
 $work = Join-Path $stage 'work'
 $out = Join-Path $root 'android\out'
-$apk = Join-Path $work 'HorunDrama-mobile-1.3.0.apk'
-$versionCode = 16
-$versionName = '1.3.0'
+$apk = Join-Path $work 'HorunDrama-mobile-1.3.1.apk'
+$versionCode = 17
+$versionName = '1.3.1'
 
 # aapt2 的 --version-code/--version-name 不会覆盖 manifest 里的硬编码值；
 # 这里先卡住，避免出现 build.ps1 写 1.1.3、APK 实际还是旧版本（2026-11-25 遇到过）
 $manifestText = Get-Content -LiteralPath (Join-Path $src 'AndroidManifest.xml') -Raw
 if ($manifestText -notmatch "android:versionCode=`"$versionCode`"" -or $manifestText -notmatch "android:versionName=`"$versionName`"") {
   throw "AndroidManifest.xml 的 versionCode/versionName 与 build.ps1 不一致：需要 versionCode=$versionCode / versionName=$versionName"
+}
+
+# 高清取流侧车与 MetaSec 材料（不进 git；构建前放到 .tmp\hgresolve）
+$sidecar = Join-Path $root '.tmp\hgresolve'
+if (Test-Path $sidecar) {
+  foreach ($abi in @('arm64-v8a', 'x86_64')) {
+    $lib = Join-Path $sidecar "$abi\libhgresolve.so"
+    if (Test-Path $lib) {
+      $dst = Join-Path $runtimeStage "jniLibs\$abi"
+      New-Item -ItemType Directory -Force -Path $dst | Out-Null
+      Copy-Item $lib (Join-Path $dst 'libhgresolve.so') -Force
+      Write-Host "  + libhgresolve.so $abi"
+    }
+  }
+  $meta = Join-Path $sidecar 'metasec'
+  if ((Test-Path (Join-Path $meta 'image.elf')) -and (Test-Path (Join-Path $meta 'license.txt'))) {
+    $dst = Join-Path $runtimeStage 'assets\core\vendor\hgresolve\metasec'
+    New-Item -ItemType Directory -Force -Path $dst | Out-Null
+    Copy-Item (Join-Path $meta 'image.elf') $dst -Force
+    Copy-Item (Join-Path $meta 'license.txt') $dst -Force
+    Write-Host '  + MetaSec 材料'
+  }
 }
 
 foreach ($need in @("$JDK\bin\javac.exe", "$BT\aapt2.exe", "$BT\d8.bat", "$BT\apksigner.bat", "$BT\zipalign.exe", $AJAR, (Join-Path $runtimeStage 'assets'), (Join-Path $runtimeStage 'jniLibs'))) {

@@ -31,6 +31,7 @@ import { getJob, jobView, startEpisode, startUpgradeJob } from '../media/jobs.ts
 import { streamLiveMp4 } from '../media/live.ts';
 import { schedulePreload } from '../media/preload.ts';
 import { resolveEpisodeStream } from '../sources/playback.ts';
+import { hgResolveAvailable } from '../sources/hgresolve.ts';
 import {
   cancelDownload,
   downloadSummary,
@@ -144,6 +145,7 @@ export function registerRoutes(router: Router): void {
       version: VERSION,
       dataRoot: DATA_ROOT,
       node: process.version,
+      hgResolve: hgResolveAvailable(),
       uptimeSec: Math.round((Date.now() - startedAt) / 1000),
     });
   });

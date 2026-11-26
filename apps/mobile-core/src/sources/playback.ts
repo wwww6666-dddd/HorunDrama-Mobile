@@ -6,6 +6,7 @@
  */
 import { getClient, withRetry } from './client.ts';
 import { lastAppError, resolveAppStream } from './appplay.ts';
+import { resolveHgStream } from './hgresolve.ts';
 import { createLogger } from '../util/log.ts';
 
 const log = createLogger('playback');
@@ -109,8 +110,11 @@ export async function resolveEpisodeStream(
   if (tiers !== undefined) {
     for (let i = 0; i < tiers.length; i += 1) {
       const want = tiers[i] ?? '360p';
+      // 优先走带 MetaSec v5/SDI 的侧车（2026-11-23 后旧纯 JS 签名会空响应）。
+      // 360p 仍交给官网 H.264 直连，避免为了低清去转码 HEVC。
+      const hg = want === '360p' ? null : await resolveHgStream(episodeId, want);
       // 中间档失败不计入熔断计数：这是"上游没有这一档"，不是限流
-      const stream = await resolveAppStream(episodeId, want, i === tiers.length - 1);
+      const stream = hg ?? (await resolveAppStream(episodeId, want, i === tiers.length - 1));
       if (stream !== null) {
         if (rankOf(stream.definition) !== rankOf(want)) {
           log.info(`上游没有 ${want}，这一集实际拿到 ${stream.definition}`);
@@ -121,6 +125,8 @@ export async function resolveEpisodeStream(
       if (/ByteVC2|H\.266|VVC/.test(lastAppError())) break;
     }
   } else {
+    const hg = await resolveHgStream(episodeId, prefer);
+    if (hg !== null) return hg;
     const direct = await resolveAppStream(episodeId, prefer);
     if (direct !== null) return direct;
   }

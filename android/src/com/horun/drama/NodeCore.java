@@ -168,6 +168,15 @@ final class NodeCore {
         pb.environment().put("HORUN_WEB_DIST", web.getAbsolutePath());
         pb.environment().put("HORUN_FFMPEG", ffmpeg);
         pb.environment().put("HORUN_LIVE_LOCAL", "1");
+        // 高清取流侧车：直接指到 nativeLibraryDir，避免依赖 LD_LIBRARY_PATH 的顺序
+        File hgSidecar = new File(ctx.getApplicationInfo().nativeLibraryDir, "libhgresolve.so");
+        if (hgSidecar.isFile()) {
+            pb.environment().put("HORUN_HGRESOLVE", hgSidecar.getAbsolutePath());
+        }
+        File metasec = new File(core, "vendor/hgresolve/metasec");
+        if (metasec.isDirectory()) {
+            pb.environment().put("HONGGUO_METASEC_DIR", metasec.getAbsolutePath());
+        }
         File downloads = new File(ctx.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "HorunDrama");
         if (!downloads.isDirectory() && !downloads.mkdirs()) {
             Log.w("HorunCore", "下载目录创建失败：" + downloads);
