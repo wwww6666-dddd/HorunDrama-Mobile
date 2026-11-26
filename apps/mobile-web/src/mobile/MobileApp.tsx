@@ -135,6 +135,9 @@ export function MobileApp(): JSX.Element {
   useEffect(() => {
     const dark = playRoute !== null || route === 'feed' || theme === 'dark';
     window.HorunAndroid?.setBars?.(dark ? 'dark' : 'light');
+    // WebView/部分桌面的状态栏会读 theme-color；跟着页面深浅切换，避免顶部被刷成纯黑
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (meta !== null) meta.content = dark ? '#0a0908' : '#faf7f1';
   }, [route, playRoute, detailId, theme]);
 
   // 1.3.6：所有页面都允许横屏（不再只给推荐流/播放页）。

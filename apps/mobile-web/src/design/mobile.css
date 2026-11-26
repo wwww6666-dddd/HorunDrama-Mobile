@@ -930,27 +930,11 @@ body {
     width: min(232px, calc(100vw - 32px));
   }
 
-  /* 播放页上下压暗罩，保证标题可读 */
+  /* 播放页不再铺整屏上下黑罩：之前的 0.62/0.72 黑渐变会压在视频上，
+     全屏看片像蒙了一层灰。文字可读性改由图标/文字自身的轻投影解决。 */
   .play::before,
   .play::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    z-index: 3;
-    pointer-events: none;
-  }
-
-  .play::before {
-    top: 0;
-    height: calc(var(--safe-top) + 96px);
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), transparent);
-  }
-
-  .play::after {
-    bottom: 0;
-    height: calc(var(--safe-bottom) + 210px);
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0.72), transparent);
+    display: none;
   }
 
   /* ================= 我的 / 设置：去卡片化 ================= */

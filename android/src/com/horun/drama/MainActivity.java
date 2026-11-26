@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
@@ -64,6 +65,11 @@ public class MainActivity extends Activity {
     private int insetTop;
     private int insetRight;
     private int insetBottom;
+    /** 已经写进 WebView 的 CSS 安全区数值，避免每次 inset 回调都重复 eval */
+    private int cssInsetLeft = Integer.MIN_VALUE;
+    private int cssInsetTop = Integer.MIN_VALUE;
+    private int cssInsetRight = Integer.MIN_VALUE;
+    private int cssInsetBottom = Integer.MIN_VALUE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +89,7 @@ public class MainActivity extends Activity {
         retryBtn = findViewById(R.id.retryBtn);
         retryBtn.setOnClickListener(v -> boot());
         setupWindowInsets();
+        requestSmoothRefresh();
 
         String deepHash = routeFromUri(getIntent() == null ? null : getIntent().getData());
         if (deepHash != null) pendingHash = deepHash;
@@ -177,6 +184,12 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                // 新页面的 inline 变量会重置，必须重新灌一次安全区
+                cssInsetLeft = Integer.MIN_VALUE;
+                cssInsetTop = Integer.MIN_VALUE;
+                cssInsetRight = Integer.MIN_VALUE;
+                cssInsetBottom = Integer.MIN_VALUE;
+                applyContentInsets();
                 if (NodeCore.isReady()) hideError();
             }
         });
@@ -341,35 +354,100 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * 自适应系统栏：非沉浸页把状态栏/刘海/手势条让进内容区，沉浸视频页再归零。
-     * WebView 的 env(safe-area-inset-top) 在 Android 上恒为 0，不能只靠 CSS 补 28px。
+     * 请求 60Hz：部分高刷屏（华为/荣耀）默认把 WebView 降到 30/60 混合刷新，
+     * 列表滑动和切集动画会一顿一顿。这里明确请求 60fps；系统不支持时自动忽略。
+     */
+    private void requestSmoothRefresh() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
+        try {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.preferredRefreshRate = 60f;
+            getWindow().setAttributes(lp);
+        } catch (Exception ignored) {
+            // 个别 ROM 不允许改刷新率，保持系统默认
+        }
+    }
+
+    /**
+     * 全面屏适配：窗口铺到状态栏/刘海/手势条下面，再把真实 inset 以 CSS 变量交给网页。
+     *
+     * 关键点：不再给原生根布局加 padding。根布局加 padding 会在透明状态栏下露出一条
+     * 黑色窗口底，华为/荣耀这类“状态栏透明”的机型顶部就是一整条黑边。改成网页自己
+     * 按 --m-safe-top 排版：推荐流/播放页继续全屏铺到状态栏后面，首页/设置页把顶栏
+     * 下移，但状态栏区域显示页面背景而不是黑色。
      */
     private void setupWindowInsets() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || root == null) return;
-        getWindow().setDecorFitsSystemWindows(false);
+        if (root == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        }
         root.setOnApplyWindowInsetsListener((v, insets) -> {
-            Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-            insetLeft = bars.left;
-            insetTop = bars.top;
-            insetRight = bars.right;
-            insetBottom = bars.bottom;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Insets bars = insets.getInsets(WindowInsets.Type.systemBars()
+                        | WindowInsets.Type.displayCutout());
+                insetLeft = bars.left;
+                insetTop = bars.top;
+                insetRight = bars.right;
+                insetBottom = bars.bottom;
+            } else {
+                insetLeft = insets.getSystemWindowInsetLeft();
+                insetTop = insets.getSystemWindowInsetTop();
+                insetRight = insets.getSystemWindowInsetRight();
+                insetBottom = insets.getSystemWindowInsetBottom();
+            }
             applyContentInsets();
             return insets;
         });
         root.requestApplyInsets();
     }
 
+    /** 把 px 换算成 WebView 的 CSS px，写进 --m-safe-*；网页按这些变量排版。 */
     private void applyContentInsets() {
         if (root == null) return;
+        // 根布局永远不再加 padding，否则透明状态栏/手势区会出现黑底
+        if (root.getPaddingLeft() != 0 || root.getPaddingTop() != 0
+                || root.getPaddingRight() != 0 || root.getPaddingBottom() != 0) {
+            root.setPadding(0, 0, 0, 0);
+        }
+        if (web == null) return;
+
         int left = immersive ? 0 : insetLeft;
         int top = immersive ? 0 : insetTop;
         int right = immersive ? 0 : insetRight;
         int bottom = immersive ? 0 : insetBottom;
-        if (root.getPaddingLeft() != left || root.getPaddingTop() != top
-                || root.getPaddingRight() != right || root.getPaddingBottom() != bottom) {
-            root.setPadding(left, top, right, bottom);
+        float density = getResources().getDisplayMetrics().density;
+        if (density <= 0f) density = 1f;
+        int cssLeft = Math.round(left / density);
+        int cssTop = Math.round(top / density);
+        int cssRight = Math.round(right / density);
+        int cssBottom = Math.round(bottom / density);
+        if (cssLeft == cssInsetLeft && cssTop == cssInsetTop
+                && cssRight == cssInsetRight && cssBottom == cssInsetBottom) {
+            return;
         }
+        cssInsetLeft = cssLeft;
+        cssInsetTop = cssTop;
+        cssInsetRight = cssRight;
+        cssInsetBottom = cssBottom;
+
+        String js = "(function(){var d=document.documentElement;if(!d)return;var s=d.style;"
+                + "s.setProperty('--m-safe-top','" + cssTop + "px');"
+                + "s.setProperty('--m-safe-bottom','" + cssBottom + "px');"
+                + "s.setProperty('--m-safe-left','" + cssLeft + "px');"
+                + "s.setProperty('--m-safe-right','" + cssRight + "px');"
+                + "s.setProperty('--safe-top','" + cssTop + "px');"
+                + "s.setProperty('--safe-bottom','" + cssBottom + "px');"
+                + "s.setProperty('--safe-left','" + cssLeft + "px');"
+                + "s.setProperty('--safe-right','" + cssRight + "px');"
+                + "})();";
+        web.evaluateJavascript(js, null);
     }
+
 
     /** 浅色/深色两种系统栏，官方剧场/我的用白底黑字，推荐/播放用黑底白字。 */
     private void applyBars(boolean light) {
@@ -379,9 +457,20 @@ public class MainActivity extends Activity {
             hideSystemUi();
             return;
         }
-        int color = light ? 0xFFFFFFFF : 0xFF0A0908;
-        getWindow().setStatusBarColor(color);
-        getWindow().setNavigationBarColor(color);
+        // 状态栏/导航栏都透明：内容直接铺到屏幕边缘，通知栏区域显示页面自己的背景。
+        // 不能设白/黑实色，否则华为 Pura 这类透明通知栏会被盖成一条黑带。
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getWindow().setNavigationBarDividerColor(Color.TRANSPARENT);
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+        if (root != null) {
+            root.setBackgroundColor(light ? 0xFFFDF8F3 : 0xFF0A0908);
+        }
         View decor = getWindow().getDecorView();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController controller = getWindow().getInsetsController();
@@ -400,7 +489,11 @@ public class MainActivity extends Activity {
             return;
         }
         int flags = decor.getSystemUiVisibility();
-        flags |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+        flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
         if (light) {
             flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
         } else {

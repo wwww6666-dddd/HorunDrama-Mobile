@@ -118,9 +118,10 @@ export async function checkMobileUpdate(): Promise<UpdateInfo> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(MOBILE_UPDATE_API_URL, {
+    const res = await fetch(`${MOBILE_UPDATE_API_URL}?t=${Date.now()}`, {
       signal: controller.signal,
-      headers: { accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+      headers: { accept: 'application/vnd.github+json', 'cache-control': 'no-cache' },
     });
     if (!res.ok) {
       if (res.status === 404) throw new Error('手机仓库还没有发布 release');

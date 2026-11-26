@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { JSX, TouchEvent as ReactTouchEvent } from 'react';
+import type { JSX, PointerEvent as ReactPointerEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type Player from 'xgplayer';
 import { api, type CommentItem, type CommentPage, type DanmakuItem, type PlayJob, type SeriesDetail } from '../api.ts';
 import { CAN_PLAY_HEVC } from '../media-support.ts';
@@ -230,6 +230,9 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
   const dragYRef = useRef(0);
   /** 手势结束后 WebView 可能补发一次 click，不能让它把视频暂停 */
   const suppressClickUntil = useRef(0);
+  /** 底部进度条：指针按下后持续 seek，拖动时不再触发上下切集 */
+  const progressRef = useRef<HTMLDivElement | null>(null);
+  const progressDrag = useRef(false);
 
   const flash = useCallback((text: string): void => {
     setNote(text);
@@ -998,7 +1001,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     if (clearedRef.current) return;
     setChromeVisible(true);
     if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setChromeVisible(false), 2600);
+    hideTimer.current = window.setTimeout(() => setChromeVisible(false), 4200);
   };
 
   // 清屏后第一下点击只负责把控件叫回来，不直接触发播放/暂停
@@ -1007,7 +1010,7 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
       clearedRef.current = false;
       setChromeVisible(true);
       if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
-      hideTimer.current = window.setTimeout(() => setChromeVisible(false), 2600);
+      hideTimer.current = window.setTimeout(() => setChromeVisible(false), 4200);
       return;
     }
     wakeChrome();
@@ -1190,14 +1193,51 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
     }
   };
 
-  const seekTo = (event: { currentTarget: HTMLDivElement; clientX: number }): void => {
+  const seekAt = (clientX: number): void => {
+    const el = progressRef.current;
     const total = duration > 0 ? duration : (job?.durationSec ?? 0);
-    if (total <= 0) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    if (el === null || total <= 0) return;
+    const box = el.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
     const at = ratio * total;
     playerRef.current?.seek(at);
     setTime(at);
+  };
+
+  const onProgressDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (duration <= 0 && (job?.durationSec ?? 0) <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    progressDrag.current = true;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* 个别 WebView 不支持 pointer capture */
+    }
+    seekAt(event.clientX);
+    wakeChrome();
+  };
+
+  const onProgressMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (!progressDrag.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    seekAt(event.clientX);
+  };
+
+  const onProgressUp = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (!progressDrag.current) return;
+    progressDrag.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+    seekAt(event.clientX);
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      /* 已经释放 */
+    }
+    // 拖完会补发 click，别让它把控制条隐藏或触发暂停
+    suppressClickUntil.current = Date.now() + 400;
   };
 
   const qualityList = (job?.available?.length ?? 0) > 0 ? (job?.available ?? []) : ['smooth', '480p', '720p', '1080p'];
@@ -1498,7 +1538,21 @@ export function Play({ route, mobile = false }: { route: PlayRoute; mobile?: boo
           </div>
 
           <div className="mp-bottom" data-hidden={!chromeVisible}>
-            <div className="mp-progress" onClick={seekTo} role="presentation">
+            <div
+              className="mp-progress"
+              ref={progressRef}
+              role="slider"
+              aria-label="播放进度"
+              aria-valuemin={0}
+              aria-valuemax={Math.round(totalSec)}
+              aria-valuenow={Math.round(time)}
+              onPointerDown={onProgressDown}
+              onPointerMove={onProgressMove}
+              onPointerUp={onProgressUp}
+              onPointerCancel={() => {
+                progressDrag.current = false;
+              }}
+            >
               <span style={{ width: `${Math.round(progressRatio * 100)}%` }} />
               <i style={{ left: `${Math.round(progressRatio * 100)}%` }} />
             </div>
